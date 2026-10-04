@@ -19,6 +19,7 @@ The repository contains planning documents and a placeholder README. Do not infe
 
 ## Engineering boundaries
 
+- Prefer maintained external libraries whenever possible and appropriate; write custom code when a library does not fit the requirement.
 - Treat remote playlist, guide, manifest, and media URLs as untrusted. Apply public-destination checks to initial requests, redirects, and nested HLS resources; bound fetch time and size. Do not create a generic open proxy.
 - Check account ownership on every durable API and media route. Do not expose upstream URL query strings in logs or browser-visible errors.
 - Preserve the last good playlist or guide snapshot when refresh fails, and surface stale or failed status.
