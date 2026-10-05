@@ -1,7 +1,7 @@
 # ReHLS Phase 2: Core Application Design
 
 **Date:** 2026-10-05
-**Status:** Proposed for owner review
+**Status:** Approved for planning
 **Parent:** [Project design](2026-10-04-rehls-project-design.md) and [roadmap](../../ROADMAP.md)
 
 ## Purpose and exit gate
