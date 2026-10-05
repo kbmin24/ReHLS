@@ -1,0 +1,7 @@
+#EXTM3U
+#EXTINF:-1 tvg-id="news-one",News
+https://streams.example.org/news/index.m3u8?token=private
+#EXTINF:-1,News
+https://streams.example.org/other/live
+#EXTINF:-1 tvg-id="unsupported",Unsupported
+rtsp://streams.example.org/unsupported

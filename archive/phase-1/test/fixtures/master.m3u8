@@ -1,0 +1,6 @@
+#EXTM3U
+#EXT-X-VERSION:3
+#EXT-X-STREAM-INF:BANDWIDTH=800000
+low/index.m3u8?auth=one
+#EXT-X-STREAM-INF:BANDWIDTH=1600000
+https://other.example.org/high/index.m3u8?auth=two

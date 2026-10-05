@@ -113,3 +113,17 @@ test('does not expose an upstream URL when redirect cleanup fails', async () => 
     (error: Error) => !error.message.includes('secret=abc'),
   );
 });
+
+test('caller abort remains connected after response headers', async () => {
+  const controller = new AbortController();
+  let upstreamSignal: AbortSignal | undefined;
+  const client = createPublicClient({
+    request: async (_url, signal) => {
+      upstreamSignal = signal;
+      return new Response('segment');
+    },
+  });
+  await client.get(new URL('https://example.org/segment.ts'), controller.signal);
+  controller.abort();
+  assert.equal(upstreamSignal?.aborted, true);
+});

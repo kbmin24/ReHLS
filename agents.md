@@ -4,7 +4,7 @@ Read [the project design](docs/superpowers/specs/2026-10-04-rehls-project-design
 
 ## Current state
 
-The repository contains planning documents and a placeholder README. Do not infer an existing application architecture. The owner explicitly requested planning first and no product code yet. Start a phase only after its narrower spec and implementation plan have been reviewed.
+The Phase 1 local proof of concept and its phase-specific documents are preserved in `archive/phase-1/`. The repository root contains project-wide documents; Phase 2 has not started. Do not treat the archived proof of concept as the durable application architecture. Start a phase only after its narrower spec and implementation plan have been reviewed.
 
 ## Project commitments
 
