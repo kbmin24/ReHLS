@@ -1,0 +1,43 @@
+{
+  "name": "rehls",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "node --env-file=.env.local --import tsx server/src/index.ts",
+    "dev:client": "vite --host 127.0.0.1",
+    "dev:worker": "node --env-file=.env.local --import tsx server/src/worker/index.ts",
+    "migrate:local": "node --env-file=.env.local --import tsx db/migrate.ts",
+    "admin:local": "node --env-file=.env.local --import tsx server/src/cli/create-admin.ts",
+    "start": "node dist/server/src/index.js",
+    "worker": "node dist/server/src/worker/index.js",
+    "migrate": "node dist/db/migrate.js",
+    "test": "node --import tsx --test test/**/*.test.ts",
+    "test:e2e": "playwright test",
+    "typecheck": "tsc -p tsconfig.json --noEmit && vue-tsc -p tsconfig.client.json --noEmit",
+    "build": "tsc -p tsconfig.server.json && vite build"
+  },
+  "dependencies": {
+    "express": "5.2.1",
+    "express-validate": "^0.0.8",
+    "helmet": "^8.3.0",
+    "kysely": "^0.29.6",
+    "pg": "8.23.1",
+    "vue": "3.5.43"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0",
+    "@tailwindcss/vite": "4.3.3",
+    "@types/express": "5.0.6",
+    "@types/node": "26.6.4",
+    "@types/pg": "8.23.1",
+    "@vitejs/plugin-vue": "6.0.9",
+    "tailwindcss": "4.3.3",
+    "tsx": "4.23.15",
+    "typescript": "5.9.3",
+    "vite": "8.3.2",
+    "vue-tsc": "3.3.12"
+  }
+}

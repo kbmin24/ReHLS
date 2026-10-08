@@ -1,0 +1,5 @@
+{
+  "extends": "./tsconfig.server.json",
+  "compilerOptions": { "noEmit": true },
+  "include": ["server/src/**/*.ts", "db/migrations/**/*.ts", "test/**/*.ts"]
+}

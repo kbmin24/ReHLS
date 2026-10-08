@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.superpowers/
+.env.local
+.env.*.local
+
+docs/
