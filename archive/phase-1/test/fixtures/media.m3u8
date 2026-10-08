@@ -1,0 +1,7 @@
+#EXTM3U
+#EXT-X-TARGETDURATION:6
+#EXT-X-MEDIA-SEQUENCE:101
+#EXTINF:6.0,
+../seg-101.ts?sig=abc
+#EXTINF:6.0,
+https://media.example.org/seg-102.ts?key=def

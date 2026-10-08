@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>ReHLS</title>
+    <style>
+      body { font: 1rem system-ui, sans-serif; max-width: 48rem; margin: 2rem auto; padding: 0 1rem; }
+      form { display: flex; gap: .5rem; }
+      input { flex: 1; min-width: 0; }
+      select, video { display: block; width: 100%; margin-top: 1rem; }
+      video { background: black; }
+    </style>
+  </head>
+  <body>
+    <h1>ReHLS</h1>
+    <form id="import-form">
+      <input id="playlist-url" type="url" placeholder="Public M3U URL" aria-label="Public M3U URL" required>
+      <button type="submit">Import</button>
+    </form>
+    <p id="status" role="status"></p>
+    <select id="channel" aria-label="Channel" disabled>
+      <option value="">Choose a channel</option>
+    </select>
+    <video id="video" controls playsinline></video>
+    <script src="/vendor/hls.min.js"></script>
+    <script type="module" src="/player.js"></script>
+  </body>
+</html>
