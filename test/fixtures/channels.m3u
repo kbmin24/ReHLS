@@ -1,0 +1,8 @@
+#EXTM3U
+#EXTINF:-1 tvg-id="news" group-title="News",News
+https://streams.example.org/one.m3u8
+#EXTINF:-1 tvg-id="news" group-title="News",News
+https://streams.example.org/two.m3u8
+#EXTINF:-1,Bad URL
+rtsp://streams.example.org/bad
+#EXTINF:-1,Missing URL

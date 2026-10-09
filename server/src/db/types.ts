@@ -10,6 +10,8 @@ import {
 export interface Database {
     users: UsersTable
     session: SessionTable
+    playlist_sources: PlaylistSourcesTable
+    channels: ChannelsTable
 }
 
 export interface UsersTable {
@@ -35,3 +37,34 @@ export interface SessionTable {
 export type Session = Selectable<SessionTable>
 export type NewSession = Insertable<SessionTable>
 export type SessionUpdate = Updateable<SessionTable>
+
+export interface PlaylistSourcesTable {
+  id: Generated<string>
+  owner_id: string
+  url: string
+  refresh_interval: number | null
+  refresh_status: Generated<'queued' | 'healthy' | 'stale' | 'failed'>
+  last_attempt_at: Date | null
+  last_success_at: Date | null
+  last_failure_code: string | null
+  created_at: Generated<Date>
+}
+
+export type PlaylistSource = Selectable<PlaylistSourcesTable>
+export type NewPlaylistSource = Insertable<PlaylistSourcesTable>
+export type PlaylistSourceUpdate = Updateable<PlaylistSourcesTable>
+
+export interface ChannelsTable {
+  id: Generated<string>
+  source_id: string
+  name: string
+  tvg_id: string | null
+  group_title: string | null
+  stream_url: string
+  match_key: string
+  created_at: Generated<Date>
+}
+
+export type Channel = Selectable<ChannelsTable>
+export type NewChannel = Insertable<ChannelsTable>
+export type ChannelUpdate = Updateable<ChannelsTable>

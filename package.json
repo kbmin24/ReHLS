@@ -21,12 +21,14 @@
     "build": "tsc -p tsconfig.server.json && vite build"
   },
   "dependencies": {
+    "@iptv/playlist": "1.2.1",
     "argon2": "0.45.1",
     "connect-pg-simple": "10.0.0",
     "express": "5.2.1",
     "express-rate-limit": "8.7.1",
     "express-session": "1.19.0",
     "express-validator": "7.3.2",
+    "guarded-fetch": "^0.1.5",
     "helmet": "^8.3.0",
     "kysely": "^0.29.6",
     "pg": "8.23.1",
