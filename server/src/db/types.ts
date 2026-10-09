@@ -18,7 +18,7 @@ export interface UsersTable {
   password_hash: string
   role: 'admin' | 'user'
   session_version: number
-  disabled_at: ColumnType<Date | null, Date | undefined, never>
+  disabled_at: ColumnType<Date | null, Date | undefined, Date | null>
   created_at: Generated<Date>
 }
 

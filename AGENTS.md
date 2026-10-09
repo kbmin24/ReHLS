@@ -1,3 +1,38 @@
-# Agent instructions
+# ReHLS instructions for coding agents
 
-Read [agents.md](agents.md) before planning or implementation. It contains the ReHLS project commitments and working agreement.
+Read [the design choices](DESIGN.md), [project design](docs/superpowers/specs/2026-10-04-rehls-project-design.md), and [roadmap](docs/ROADMAP.md) before planning or implementation. They capture owner-approved project direction; phase-specific specs and plans supply implementation details.
+
+## Current state
+
+Phase 2 implementation is underway under the [Phase 2 design](docs/superpowers/specs/2026-10-05-rehls-phase-2-design.md) and [implementation plan](docs/superpowers/plans/2026-10-05-rehls-phase-2.md). Obtain owner approval before any necessary schema or migration change.
+
+## Project commitments
+
+- Target a personal, self-hostable, multi-user IPTV web client for Linux Docker Compose.
+- Use Express and TypeScript for the backend, Vue and TypeScript with Tailwind CSS and daisyUI for the frontend, and PostgreSQL for production persistence.
+- Treat phase 1 as a local-only proof of concept: import M3U, select a channel, and restream HLS through the backend without transcoding. Keep its UI disposable.
+- In the durable app, make playlist libraries, guide settings, and recordings private to each account. Admins create accounts.
+- Store source URLs and parsed channel metadata, not live manifest history or video blobs, in PostgreSQL.
+- Use user-supplied XMLTV URLs for guide data. Match by `tvg-id` with a manual override.
+- Prefer direct HLS playback. Add FFmpeg conversion, optional VAAPI, software fallback, and recordings in phase 3.
+- Support only public HTTP(S) sources initially. Do not add bundled IPTV content, DRM handling, or provider-specific authentication without a new design decision.
+
+## Engineering boundaries
+
+- Prefer maintained external libraries whenever possible and appropriate; write custom code when a library does not fit the requirement.
+- Add JSDoc selectively. When a function's purpose is not self-evident from its code, or callers need to know an important limitation, describe what it does and that limitation without narrating its implementation. Add `@param` descriptions for parameters whose meaning or constraints are nontrivial. Do not add comments to self-evident functions or repeat obvious types and arguments.
+- Treat remote playlist, guide, manifest, and media URLs as untrusted. Apply public-destination checks to initial requests, redirects, and nested HLS resources; bound fetch time and size. Do not create a generic open proxy.
+- Check account ownership on every durable API and media route. Do not expose upstream URL query strings in logs or browser-visible errors.
+- Preserve the last good playlist or guide snapshot when refresh fails, and surface stale or failed status.
+- Organize the backend as a modular monolith. User, admin, streaming, playlist, channel, and EPG modules own their behavior and data access; add service, repository, router, or controller files only when their complexity warrants them. Keep service dependencies acyclic, and prefer calling another service over reaching into its repository when practical. Shared auth/permission and rate-limit middleware belongs under `server/src/middlewares`; small shared helpers belong under `server/src/utils`. Phase 2 refresh scheduling stays in a small jobs module used by the worker, without a SchedulingService. Ask before introducing a different scheduling architecture.
+- Keep the frontend in conventional `assets`, `components`, `composables`, and `views` folders as needed. Make it functional and visually minimal until the owner directs its design.
+- Return stable backend error codes rather than English user-facing messages; the frontend maps codes to text. Use `helmet`, `express-validator`, and appropriate rate limits on every public-facing route. Enforce authorization in services and apply coarse permission middleware at routes. Never expose API keys or upstream secrets to the client.
+- Do not create or change a database schema or migration without the owner's prior approval. Review `db/` and `server/src/db/` first. Ask before changing the project or phase specification.
+- Prefer local fixtures and controlled streams for automated verification; live public streams are an additional smoke check, not a deterministic test dependency.
+- Keep future changes within the active phase. Record new scope decisions in the design or a phase spec before changing implementation direction.
+
+## Working agreement
+
+Do not perform any Git operations. If a task requires a Git action, ask the user to perform it or authorize it first.
+
+Write a phase-specific spec and implementation plan before product code. Review the relevant documents, make the smallest change for the active task, and report verification results and remaining limits. Keep automated tests minimal: test rate limits, M3U parsing, and other small units with clear edge cases when a test is useful; use direct browser checks for frontend behavior and do not add frontend or transcoding tests. Do not start coding solely from this project-level roadmap.
