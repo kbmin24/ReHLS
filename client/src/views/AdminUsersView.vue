@@ -96,8 +96,7 @@ onMounted(loadUsers);
 <template>
   <main class="mx-auto max-w-5xl space-y-10 px-5 py-10 md:px-10">
     <div>
-      <h1 class="text-3xl font-semibold tracking-tight">Accounts</h1>
-      <p class="mt-2 text-base-content/70">Create accounts and manage access to this ReHLS instance.</p>
+      <p class="text-base-content/70">Create accounts and manage access to this ReHLS instance.</p>
     </div>
 
     <p v-if="error" role="alert" class="alert alert-error text-sm">{{ error }}</p>

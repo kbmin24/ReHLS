@@ -47,6 +47,7 @@ export interface PlaylistSourcesTable {
   last_attempt_at: Date | null
   last_success_at: Date | null
   last_failure_code: string | null
+  lease_expires_at: Date | null
   created_at: Generated<Date>
 }
 

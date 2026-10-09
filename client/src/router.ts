@@ -1,17 +1,68 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import { useSession } from './composables/useSession';
 import AccountView from './views/AccountView.vue';
+import AdminView from './views/AdminView.vue';
 import AdminUsersView from './views/AdminUsersView.vue';
 import LoginView from './views/LoginView.vue';
+import NotFoundView from './views/404.vue';
+import PlaceholderView from './views/PlaceholderView.vue';
+
+declare module 'vue-router' {
+  interface RouteMeta {
+    pageType?: 'special' | 'app' | 'admin' | 'user';
+    requiresAdmin?: boolean;
+    title?: string;
+  }
+}
 
 const router = createRouter({
   history: createWebHistory(),
   routes: [
-    { path: '/', redirect: '/login' },
-    { path: '/login', name: 'login', component: LoginView },
-    { path: '/admin/users', name: 'admin-users', component: AdminUsersView, meta: { requiresAdmin: true } },
-    { path: '/account', name: 'account', component: AccountView },
-    { path: '/:pathMatch(.*)*', redirect: '/' },
+    {
+      path: '/',
+      redirect: '/home'
+    },
+    { path: '/login',
+      name: 'login',
+      component: LoginView,
+      meta: { pageType: 'special' }
+    },
+    { path: '/home', name: 'home', component: PlaceholderView,
+      props: { description: 'Your favorite channels will appear here.' },
+      meta: { pageType: 'app', title: 'Home' }
+    },
+    { path: '/library', name: 'library', component: PlaceholderView,
+      props: { description: 'Your channel library will appear here.' },
+      meta: { pageType: 'app', title: 'Library' }
+    },
+    { path: '/player', name: 'player', component: PlaceholderView,
+      props: { description: 'Playback, TV guide, and everything else will appear here.' },
+      meta: { pageType: 'app', title: 'Player' }
+    },
+    {
+      path: '/admin',
+      name: 'admin',
+      component: AdminView,
+      meta: {requiresAdmin: true, pageType: 'admin', title: 'Admin' }
+    },
+    {
+      path: '/admin/users',
+      name: 'admin-users',
+      component: AdminUsersView,
+      meta: {requiresAdmin: true, pageType: 'admin', title: 'Accounts' }
+    },
+    {
+      path: '/account',
+      name: 'account', 
+      component: AccountView,
+      meta: { pageType: 'user', title: 'Your account' }
+    },
+    {
+      path: '/:pathMatch(.*)*',
+      name: 'not-found',
+      component: NotFoundView,
+      meta: { pageType: 'special' }
+    },
   ],
 });
 

@@ -25,6 +25,7 @@ export class PlaylistRepository {
       last_attempt_at: null,
       last_success_at: null,
       last_failure_code: null,
+      lease_expires_at: null,
     }).returningAll().executeTakeFirstOrThrow();
     return safeSource(source);
   }
