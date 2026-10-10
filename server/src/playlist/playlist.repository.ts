@@ -49,8 +49,11 @@ export class PlaylistRepository {
     return this.db.transaction().execute(async (transaction) => {
       const source = await transaction.selectFrom('playlist_sources').select('id')
         .where('owner_id', '=', ownerId).where('id', '=', sourceId).forUpdate().executeTakeFirst();
+
       if (!source) throw new NotFoundError();
+
       await this.channels.replaceSnapshot(transaction, ownerId, sourceId, snapshot);
+      
       const now = new Date();
       const updated = await transaction.updateTable('playlist_sources')
         .set({ refresh_status: 'healthy', last_attempt_at: now, last_success_at: now, last_failure_code: null, lease_expires_at: null })

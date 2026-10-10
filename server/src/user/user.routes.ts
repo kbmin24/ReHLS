@@ -24,7 +24,8 @@ export function userRoutes(users: UserActions): Router {
 
   router.post('/login',
     body('username').isString().trim().notEmpty().isLength({ max: 100 }),
-    body('password').isString().notEmpty(), validate,
+    body('password').isString().notEmpty(),
+    validate,
     async (request, response) => {
       const user = await users.authenticate(request.body.username, request.body.password);
       await rotateSession(request, user);
@@ -41,7 +42,8 @@ export function userRoutes(users: UserActions): Router {
 
   router.post('/password', requireUser(users),
     body('currentPassword').isString().notEmpty(),
-    body('newPassword').isString().isLength({ min: 12 }), validate,
+    body('newPassword').isString().isLength({ min: 12 }),
+    validate,
     async (request, response) => {
       const active = request.authUser;
       if (!active) throw new UnauthenticatedError();

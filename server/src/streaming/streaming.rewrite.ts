@@ -30,6 +30,11 @@ const supportedTags = new Set([
 ]);
 const uriTags = new Set(['EXT-X-MEDIA', 'EXT-X-I-FRAME-STREAM-INF', 'EXT-X-KEY', 'EXT-X-MAP']);
 
+/**
+ * Parses the attributes from a line in the HLS manifest.
+ * @param line The line to parse.
+ * @returns A map of attribute names to their values.
+ */
 function attributes(line: string): Map<string, Attribute> {
   const colon = line.indexOf(':');
   if (colon < 0) throw new InvalidHlsError();
@@ -40,13 +45,16 @@ function attributes(line: string): Map<string, Attribute> {
     if (line[index] === '"') quoted = !quoted;
     if (index !== line.length && (line[index] !== ',' || quoted)) continue;
     if (quoted) throw new InvalidHlsError();
+
     const field = line.slice(start, index);
     const match = /^([A-Z0-9-]+)=("[^"]*"|[^",]+)$/.exec(field);
     if (!match || result.has(match[1]!)) throw new InvalidHlsError();
+
     const name = match[1]!;
     const raw = match[2]!;
     const isQuoted = raw.startsWith('"');
     const valueStart = start + name.length + 1 + (isQuoted ? 1 : 0);
+
     result.set(name, {
       value: isQuoted ? raw.slice(1, -1) : raw,
       start: valueStart,
@@ -60,7 +68,11 @@ function attributes(line: string): Map<string, Attribute> {
 
 function resourceUrl(value: string, base: URL): URL {
   let url: URL;
-  try { url = new URL(value, base); } catch { throw new InvalidHlsError(); }
+  try {
+    url = new URL(value, base);
+  } catch {
+    throw new InvalidHlsError();
+  }
   if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) throw new UnsupportedHlsError();
   return url;
 }
@@ -107,7 +119,13 @@ function uriReference(fields: Map<string, Attribute>, line: number, base: URL, k
     ...(range ? { range } : {}) };
 }
 
-/** Validates the full playlist before issuing tokens; preserves source tag order. */
+/**
+ * Rewrites an HLS manifest, replacing all resource URLs with registered paths.
+ * @param text The original HLS manifest.
+ * @param finalUrl The URL of the final manifest.
+ * @param register A function to register a resource.
+ * @returns The rewritten HLS manifest.
+ */
 export function rewriteManifest(text: string, finalUrl: URL, register: RegisterResource): string {
   if (text.length > 1024 * 1024) throw new InvalidHlsError();
   const newline = text.includes('\r\n') ? '\r\n' : '\n';

@@ -46,7 +46,11 @@ export class ResourceRegistry {
     }
     const token = randomBytes(24).toString('base64url');
     this.entries.set(token, {
-      ownerId, channelId, url: new URL(url), kind, key,
+      ownerId,
+      channelId,
+      url: new URL(url),
+      kind,
+      key,
       ...(range ? { range: { ...range } } : {}),
       expiresAt: this.now() + this.options.ttlMs,
     });

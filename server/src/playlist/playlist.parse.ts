@@ -33,6 +33,7 @@ export function parseChannels(text: string): ParseChannelsResult {
   }
 
   for (const entry of entries) {
+    // filter sane values
     const name = (entry.name || entry.tvgName || '').trim();
     let url: URL;
     try {
@@ -42,6 +43,7 @@ export function parseChannels(text: string): ParseChannelsResult {
     }
     if (!name || !['http:', 'https:'].includes(url.protocol) || url.username || url.password) continue;
 
+    // normalise values
     const tvgId = entry.tvgId?.trim() || undefined;
     const group = entry.groupTitle?.trim() || undefined;
     const identity = tvgId && tvgIdCounts.get(tvgId) === 1

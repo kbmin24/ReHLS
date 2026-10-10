@@ -13,6 +13,10 @@ export interface Database {
     session: SessionTable
     playlist_sources: PlaylistSourcesTable
     channels: ChannelsTable
+    xmltv_sources: XmltvSourcesTable
+    xmltv_channels: XmltvChannelsTable
+    xmltv_programs: XmltvProgramsTable
+    channel_guide_overrides: ChannelGuideOverridesTable
 }
 
 export interface UsersTable {
@@ -72,3 +76,36 @@ export interface ChannelsTable {
 export type Channel = Selectable<ChannelsTable>
 export type NewChannel = Insertable<ChannelsTable>
 export type ChannelUpdate = Updateable<ChannelsTable>
+
+export interface XmltvSourcesTable {
+  id: Generated<string>
+  owner_id: string
+  url: string
+  refresh_interval: number | null
+  refresh_status: Generated<'queued' | 'healthy' | 'stale' | 'failed'>
+  last_attempt_at: Date | null
+  last_success_at: Date | null
+  last_failure_code: string | null
+  lease_expires_at: Date | null
+  created_at: Generated<Date>
+}
+
+export interface XmltvChannelsTable {
+  id: Generated<string>
+  source_id: string
+  xmltv_id: string
+  display_name: string
+}
+
+export interface XmltvProgramsTable {
+  id: Generated<string>
+  channel_id: string
+  title: string
+  starts_at: Date
+  ends_at: Date
+}
+
+export interface ChannelGuideOverridesTable {
+  channel_id: string
+  xmltv_channel_id: string
+}
