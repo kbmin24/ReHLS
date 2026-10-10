@@ -15,8 +15,16 @@ const session = useSession();
 const channels = ref<Channel[]>([]);
 const sources = ref<Source[]>([]);
 const activeSourceId = ref('');
-const visibleChannels = computed(() => activeSourceId.value
+const activeCategory = ref('');
+const channelCategories = (channel: Channel) => channel.group?.split(';').map((group) => group.trim()).filter(Boolean) ?? [];
+const sourceChannels = computed(() => activeSourceId.value
   ? channels.value.filter((channel) => channel.sourceId === activeSourceId.value) : channels.value);
+const categories = computed(() => [...new Set(sourceChannels.value
+  .flatMap(channelCategories))].sort());
+const hasUncategorized = computed(() => sourceChannels.value.some((channel) => channelCategories(channel).length === 0));
+const visibleChannels = computed(() => sourceChannels.value.filter((channel) =>
+  !activeCategory.value || (activeCategory.value === 'uncategorized'
+    ? channelCategories(channel).length === 0 : channelCategories(channel).includes(activeCategory.value.slice(6)))));
 const selectedChannel = computed(() => channels.value.find((channel) => channel.id === selectedId.value));
 const video = ref<HTMLVideoElement | null>(null);
 const selectedId = ref<string | null>(null);
@@ -76,7 +84,7 @@ async function startChannel(channel: Channel) {
       hls.loadSource(path);
       hls.attachMedia(video.value);
     }
-    message.value = 'Ready to play ' + channel.name + '.';
+    message.value = 'Ready to play.';
   } catch (cause) {
     if (current !== selection) return;
     if (cause instanceof ApiError && cause.status === 401) {
@@ -122,6 +130,7 @@ watch(channels, () => {
   if (channel && channel.id !== selectedId.value) void startChannel(channel);
 });
 watch(activeSourceId, (sourceId) => {
+  activeCategory.value = '';
   if (!selectedChannel.value || !sourceId || selectedChannel.value.sourceId === sourceId) return;
   selection++;
   stopPlayback();
@@ -140,15 +149,17 @@ onBeforeUnmount(() => { selection++; stopPlayback(); });
     <div class="grid grid-cols-1 gap-4 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,1fr)_auto] lg:grid-rows-[minmax(0,1fr)_40vh]">
       <div class="order-2 card bg-base-200 lg:order-1 lg:min-h-0 lg:min-w-0">
         <div class="overflow-y-auto card-body">
-          <label class="grid gap-1 text-sm">Active playlist
-            <select v-model="activeSourceId" class="w-full select" aria-label="Active playlist">
-              <option value="">All playlists</option>
-              <option v-for="source in sources" :key="source.id" :value="source.id">{{ source.name }}</option>
-            </select>
-          </label>
-          <h3 class="text-lg">{{ selectedChannel?.name ?? 'No channel selected' }}</h3>
-          <h2 class="text-2xl font-bold">Program details will appear here</h2>
-          <p class="text-base-content/70">Schedule and program times will be available with the guide.</p>
+          <select v-model="activeSourceId" class="mb-2 select" aria-label="Active playlist">
+            <option value="">All playlists</option>
+            <option v-for="source in sources" :key="source.id" :value="source.id">{{ source.name }}</option>
+          </select>
+          <!--
+            TODO: If XMLTV is configured, use this:
+            <h3 class="text-lg">{{ selectedChannel?.name ?? 'No channel selected' }}</h3>
+            <h2 class="text-2xl font-bold">Program details will appear here</h2>
+            <p class="text-base-content/70">Schedule and program times will be available with the guide.</p>
+          -->
+          <h2 class="text-2xl font-bold">{{ selectedChannel?.name ?? 'No channel selected' }}</h2>
           <p v-if="message" role="status" class="text-base-content/70">{{ message }}</p>
           <p v-if="error" role="alert" class="text-error">{{ error }}</p>
         </div>
@@ -161,14 +172,20 @@ onBeforeUnmount(() => { selection++; stopPlayback(); });
       <div class="order-3 card bg-base-200 lg:col-span-2 lg:min-h-0 lg:overflow-y-auto">
         <div class="card-body">
           <div class="flex items-center justify-between gap-3">
-            <h2 class="text-xl font-bold">Program Guide/Channel list</h2>
+            <h2 class="text-xl font-bold">Channels</h2>
             <button type="button" class="btn btn-link btn-sm" :disabled="loading" @click="loadChannels">Reload</button>
           </div>
           <p v-if="loading" role="status">Loading channels...</p>
-          <p v-else-if="visibleChannels.length === 0" class="text-base-content/70">
+          <p v-else-if="sourceChannels.length === 0" class="text-base-content/70">
             No channels in this playlist. <RouterLink to="/library" class="link">Open your library</RouterLink>.
           </p>
-          <div v-else class="space-y-2">
+          <div v-else class="space-y-3">
+            <select v-model="activeCategory" class="grid gap-1 select" aria-label="Channel category">
+                <option value="">All categories</option>
+                <option v-for="category in categories" :key="category" :value="'group:' + category">{{ category }}</option>
+                <option v-if="hasUncategorized" value="uncategorized">Uncategorized</option>
+            </select>
+            <p v-if="visibleChannels.length === 0" class="text-base-content/70">No channels in this category.</p>
             <div v-for="channel in visibleChannels" :key="channel.id"
               class="grid gap-2 sm:grid-cols-[12rem_minmax(0,1fr)]">
               <button type="button" class="p-3 font-medium text-left border rounded-lg min-h-20"
