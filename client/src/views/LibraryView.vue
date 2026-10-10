@@ -143,6 +143,7 @@ onMounted(loadLibrary);
           <li v-for="channel in channels" :key="channel.id" class="p-4">
             <p class="font-medium">{{ channel.name }}</p>
             <p v-if="channel.group || channel.tvgId" class="text-sm text-base-content/70">{{ channel.group || channel.tvgId }}</p>
+            <RouterLink :to="{ name: 'player', query: { channel: channel.id } }" class="btn btn-link btn-sm mt-2 px-0">Watch</RouterLink>
           </li>
         </ul>
       </section>

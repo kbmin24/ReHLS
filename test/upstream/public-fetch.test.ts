@@ -69,3 +69,13 @@ test('a stalled request fails with the timeout code', async () => {
   await assert.rejects(fetchPublic(new URL('https://8.8.8.8/live'), { timeoutMs: 20, maxBytes: 16 }),
     (error: unknown) => error instanceof PublicFetchError && error.code === 'TIMEOUT');
 });
+
+test('passes only an explicit range header to the guarded request', async () => {
+  let range: string | null = null;
+  const fetchPublic = createPublicFetcher(async (input, init) => {
+    range = new Headers(init?.headers).get('range');
+    return responseAt(new URL(String(input)), 'bytes', { status: 206 });
+  });
+  await fetchPublic(new URL('https://8.8.8.8/part'), limits, undefined, { range: 'bytes=10-13' });
+  assert.equal(range, 'bytes=10-13');
+});

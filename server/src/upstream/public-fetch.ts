@@ -93,7 +93,7 @@ function boundedResponse(response: Response, maxBytes: number, deadline: AbortSi
 
 /** Applies ReHLS limits and safe error codes around guarded-fetch. */
 export function createPublicFetcher(fetchImpl?: typeof globalThis.fetch) {
-  return async (url: URL, limits: FetchLimits, signal?: AbortSignal): Promise<PublicFetchResult> => {
+  return async (url: URL, limits: FetchLimits, signal?: AbortSignal, headers?: HeadersInit): Promise<PublicFetchResult> => {
     if (!Number.isSafeInteger(limits.timeoutMs) || limits.timeoutMs <= 0 ||
         !Number.isSafeInteger(limits.maxBytes) || limits.maxBytes <= 0 || url.username || url.password) {
       throw new PublicFetchError('INVALID_URL');
@@ -106,6 +106,7 @@ export function createPublicFetcher(fetchImpl?: typeof globalThis.fetch) {
         maxRedirects: limits.maxRedirects ?? 4,
         opaqueErrors: true,
         signal: signal ? AbortSignal.any([signal, deadline]) : deadline,
+        ...(headers ? { headers } : {}),
         ...(fetchImpl ? { fetch: fetchImpl } : {}),
       });
     } catch (error) {

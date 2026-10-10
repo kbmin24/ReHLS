@@ -41,7 +41,12 @@ export function errorText(error: unknown): string {
     case 'INVALID_SOURCE': return 'Enter a public HTTP(S) playlist URL.';
     case 'FETCH_FAILED': return 'The playlist could not be fetched.';
     case 'EMPTY_PLAYLIST': return 'The playlist contains no supported channels.';
-    case 'TOO_LARGE': return 'The playlist is too large.';
+    case 'TOO_LARGE': return error.code?.service === 'streaming' ? 'The media response is too large.' : 'The playlist is too large.';
+    case 'UNAVAILABLE': return 'The channel is unavailable right now.';
+    case 'UNSUPPORTED': return 'This stream format is not supported.';
+    case 'EXPIRED': return 'Playback expired. Select the channel again.';
+    case 'INVALID': return 'The stream manifest is invalid.';
+    case 'INVALID_RANGE': return 'The requested media range is invalid.';
     default: return 'The request failed. Please try again.';
   }
 }

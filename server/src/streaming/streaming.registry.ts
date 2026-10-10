@@ -10,10 +10,11 @@ export type RegisteredResource = {
   range?: ByteRange;
 };
 
-type Entry = RegisteredResource & { expiresAt: number };
+type Entry = RegisteredResource & { expiresAt: number; key: string };
 
 export class ResourceRegistry {
   private readonly entries = new Map<string, Entry>();
+  private readonly tokensByResource = new Map<string, string>();
   private readonly now: () => number;
 
   constructor(private readonly options: { maxEntries: number; ttlMs: number; now?: () => number }) {
@@ -26,17 +27,30 @@ export class ResourceRegistry {
 
   registerResource(ownerId: string, channelId: string, url: URL, kind: ResourceKind, range?: ByteRange): string {
     this.removeExpired();
+
+    // If we are registering a resource that is already registered, return the existing token and refresh its expiration.
+    const key = JSON.stringify([ownerId, channelId, kind, url.href, range?.offset ?? null, range?.length ?? null]);
+    const existingToken = this.tokensByResource.get(key);
+    if (existingToken) {
+      const existing = this.entries.get(existingToken);
+      if (existing) {
+        this.refreshEntry(existingToken, existing);
+        return existingToken;
+      }
+      this.tokensByResource.delete(key);
+    }
     while (this.entries.size >= this.options.maxEntries) {
       const oldest = this.entries.keys().next().value;
       if (oldest === undefined) break;
-      this.entries.delete(oldest);
+      this.deleteEntry(oldest);
     }
     const token = randomBytes(24).toString('base64url');
     this.entries.set(token, {
-      ownerId, channelId, url: new URL(url), kind,
+      ownerId, channelId, url: new URL(url), kind, key,
       ...(range ? { range: { ...range } } : {}),
       expiresAt: this.now() + this.options.ttlMs,
     });
+    this.tokensByResource.set(key, token);
     return token;
   }
 
@@ -44,18 +58,32 @@ export class ResourceRegistry {
     const entry = this.entries.get(token);
     if (!entry) return undefined;
     if (entry.expiresAt <= this.now()) {
-      this.entries.delete(token);
+      this.deleteEntry(token);
       return undefined;
     }
     if (entry.ownerId !== ownerId) return undefined;
-    const { expiresAt: _expiresAt, ...resource } = entry;
+    if (entry.kind === 'manifest') this.refreshEntry(token, entry);
+    const { expiresAt: _expiresAt, key: _key, ...resource } = entry;
     return { ...resource, url: new URL(resource.url), ...(resource.range ? { range: { ...resource.range } } : {}) };
+  }
+
+  private refreshEntry(token: string, entry: Entry): void {
+    entry.expiresAt = this.now() + this.options.ttlMs;
+    this.entries.delete(token);
+    this.entries.set(token, entry);
+  }
+
+  private deleteEntry(token: string): void {
+    const entry = this.entries.get(token);
+    if (!entry) return;
+    this.entries.delete(token);
+    if (this.tokensByResource.get(entry.key) === token) this.tokensByResource.delete(entry.key);
   }
 
   private removeExpired(): void {
     const now = this.now();
     for (const [token, entry] of this.entries) {
-      if (entry.expiresAt <= now) this.entries.delete(token);
+      if (entry.expiresAt <= now) this.deleteEntry(token);
     }
   }
 }

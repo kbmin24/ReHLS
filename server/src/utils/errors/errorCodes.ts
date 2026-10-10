@@ -5,6 +5,7 @@ export const errorCodes = {
   rateLimit: ['RATE_LIMITED'],
   app: ['INVALID_ORIGIN', 'NOT_FOUND', 'INTERNAL_ERROR'],
   playlist: ['INVALID_SOURCE', 'FETCH_FAILED', 'PARSE_FAILED', 'EMPTY_PLAYLIST', 'TOO_LARGE'],
+  streaming: ['UNAVAILABLE', 'UNSUPPORTED', 'INVALID', 'INVALID_RANGE', 'EXPIRED', 'TOO_LARGE'],
 } as const;
 
 type Source = keyof typeof errorCodes;
@@ -24,3 +25,4 @@ export const validation = codesFor('validation');
 export const rateLimit = codesFor('rateLimit');
 export const app = codesFor('app');
 export const playlist = codesFor('playlist');
+export const streaming = codesFor('streaming');

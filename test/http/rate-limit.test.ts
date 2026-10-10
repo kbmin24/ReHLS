@@ -4,6 +4,8 @@ import type { Server } from 'node:http';
 import { test } from 'node:test';
 
 import { createApp } from '../../server/src/index.js';
+import express from 'express';
+import { mediaConcurrencyLimit } from '../../server/src/middlewares/rate-limit.js';
 
 async function firstLimitedRequest(path: string, options?: RequestInit): Promise<number | null> {
   const app = createApp({ query: async () => ({ rows: [{ ok: 1 }] }) });
@@ -39,4 +41,27 @@ test('public routes are limited and login has a stricter limit', async () => {
   assert.ok(globalLimitAt !== null, 'public requests should eventually receive 429');
   assert.ok(loginLimitAt !== null, 'login attempts should eventually receive 429');
   assert.ok(loginLimitAt < globalLimitAt, 'login should be limited before general public requests');
+});
+
+test('media concurrency limit rejects work above its active cap', async () => {
+  const app = express();
+  app.use(mediaConcurrencyLimit(1));
+  app.get('/', (_request, response) => { response.write('open'); });
+  app.use((_error: unknown, _request: express.Request, response: express.Response,
+    _next: express.NextFunction) => { response.status(429).end(); });
+  const server = app.listen(0, '127.0.0.1');
+  try {
+    await once(server, 'listening');
+    const address = server.address();
+    assert.ok(address && typeof address !== 'string');
+    const base = `http://127.0.0.1:${address.port}`;
+    const first = await fetch(base);
+    assert.equal(first.status, 200);
+    const second = await fetch(base);
+    assert.equal(second.status, 429);
+    await first.body?.cancel();
+  } finally {
+    server.closeAllConnections();
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+  }
 });
