@@ -27,3 +27,11 @@ export const adminRateLimit = () => rateLimit({
   legacyHeaders: false,
   handler: reject,
 });
+
+export const libraryRateLimit = () => rateLimit({
+  windowMs: 15 * 60_000,
+  limit: 60,
+  standardHeaders: 'draft-8',
+  legacyHeaders: false,
+  handler: reject,
+});

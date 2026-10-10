@@ -1,6 +1,7 @@
 import { assertPublicUrl, fetchPublic, PublicFetchError, type PublicFetchResult, type FetchLimits } from '../upstream/public-fetch.js';
 import { AppError, NotFoundError } from '../utils/errors/errors.js';
-import { app, playlist } from '../utils/errors/errorCodes.js';
+import { app, playlist, validation } from '../utils/errors/errorCodes.js';
+import { defaultSourceName } from './playlist.name.js';
 import { parseChannels } from './playlist.parse.js';
 import { PlaylistRepository } from './playlist.repository.js';
 
@@ -12,7 +13,7 @@ export class PlaylistService {
     private readonly fetcher: Fetcher = fetchPublic,
   ) {}
 
-  async addSource(ownerId: string, value: string, refreshInterval: number | null) {
+  async addSource(ownerId: string, value: string, refreshInterval: number | null, requestedName?: string | null) {
     if (refreshInterval !== null && (!Number.isSafeInteger(refreshInterval) || refreshInterval <= 0)) {
       throw new AppError(400, playlist.INVALID_SOURCE);
     }
@@ -23,7 +24,12 @@ export class PlaylistService {
     } catch {
       throw new AppError(400, playlist.INVALID_SOURCE);
     }
-    return this.sources.createSource(ownerId, url.href, refreshInterval);
+    if (requestedName != null && typeof requestedName !== 'string') {
+      throw new AppError(400, validation.INVALID_INPUT);
+    }
+    const name = requestedName?.trim() ?? '';
+    if (name.length > 255) throw new AppError(400, validation.INVALID_INPUT);
+    return this.sources.createSource(ownerId, url.href, refreshInterval, name || defaultSourceName(url));
   }
 
   async listSources(ownerId: string) {
@@ -32,6 +38,10 @@ export class PlaylistService {
 
   async removeSource(ownerId: string, sourceId: string) {
     if (!await this.sources.removeOwned(ownerId, sourceId)) throw new NotFoundError();
+  }
+
+  async requestRefresh(ownerId: string, sourceId: string) {
+    return this.sources.requestRefresh(ownerId, sourceId);
   }
 
   /** Fetches before opening the transaction; failed imports leave the previous channels usable. */

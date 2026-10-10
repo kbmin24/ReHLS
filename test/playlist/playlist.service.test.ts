@@ -7,6 +7,9 @@ import { Pool } from 'pg';
 
 import { up as createCore } from '../../db/migrations/001_core.js';
 import { up as createPlaylist } from '../../db/migrations/002_playlist.js';
+import { up as addRefreshLease } from '../../db/migrations/003_playlist_refresh_lease.js';
+import { up as addNextRefresh } from '../../db/migrations/004_playlist_refresh_order_index.js';
+import { up as addSourceName } from '../../db/migrations/005_playlist_source_name.js';
 import { ChannelRepository } from '../../server/src/channel/channel.repository.js';
 import { ChannelService } from '../../server/src/channel/channel.service.js';
 import type { Database } from '../../server/src/db/types.js';
@@ -23,6 +26,9 @@ test('refresh replaces channels, retains matchable IDs, and preserves the last g
     try {
       await createCore(db);
       await createPlaylist(db);
+      await addRefreshLease(db);
+      await addNextRefresh(db);
+      await addSourceName(db);
       const owner = await db.insertInto('users').values({ username: 'owner', password_hash: 'unused', role: 'user', session_version: 0 })
         .returning('id').executeTakeFirstOrThrow();
       const other = await db.insertInto('users').values({ username: 'other', password_hash: 'unused', role: 'user', session_version: 0 })
@@ -36,7 +42,10 @@ test('refresh replaces channels, retains matchable IDs, and preserves the last g
         return { response: new Response(content), finalUrl: url };
       });
       const source = await service.addSource(owner.id, 'https://8.8.8.8/list.m3u?secret=abc', null);
+      assert.equal(source.name, 'list.m3u');
       assert.equal(JSON.stringify(source).includes('secret=abc'), false);
+      const named = await service.addSource(owner.id, 'https://8.8.8.8/other.m3u', null, '  Evening TV  ');
+      assert.equal(named.name, 'Evening TV');
       await service.refreshSource(owner.id, source.id);
       const before = await channels.listOwned(owner.id);
       assert.equal(before.length, 2);

@@ -1,6 +1,7 @@
 import {
   ColumnType,
   Generated,
+  GeneratedAlways,
   Insertable,
   JSONColumnType,
   Selectable,
@@ -42,12 +43,14 @@ export interface PlaylistSourcesTable {
   id: Generated<string>
   owner_id: string
   url: string
+  name: string
   refresh_interval: number | null
   refresh_status: Generated<'queued' | 'healthy' | 'stale' | 'failed'>
   last_attempt_at: Date | null
   last_success_at: Date | null
   last_failure_code: string | null
   lease_expires_at: Date | null
+  next_refresh_at_utc: GeneratedAlways<Date | null>
   created_at: Generated<Date>
 }
 

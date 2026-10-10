@@ -38,6 +38,10 @@ export function errorText(error: unknown): string {
     case 'INVALID_ORIGIN': return 'Reload this page and try again.';
     case 'RATE_LIMITED': return 'Too many attempts. Try again later.';
     case 'NOT_FOUND': return 'That account could not be found.';
+    case 'INVALID_SOURCE': return 'Enter a public HTTP(S) playlist URL.';
+    case 'FETCH_FAILED': return 'The playlist could not be fetched.';
+    case 'EMPTY_PLAYLIST': return 'The playlist contains no supported channels.';
+    case 'TOO_LARGE': return 'The playlist is too large.';
     default: return 'The request failed. Please try again.';
   }
 }

@@ -17,9 +17,16 @@ import { UserService } from './user/user.service.js';
 import { userRoutes, type UserActions } from './user/user.routes.js';
 import { AdminService } from './admin/admin.service.js';
 import { adminRoutes, type AdminActions } from './admin/admin.routes.js';
+import { ChannelRepository } from './channel/channel.repository.js';
+import { ChannelService } from './channel/channel.service.js';
+import { channelRoutes } from './channel/channel.routes.js';
+import { PlaylistRepository } from './playlist/playlist.repository.js';
+import { PlaylistService } from './playlist/playlist.service.js';
+import { playlistRoutes } from './playlist/playlist.routes.js';
 
 export type HealthDatabase = { query(sql: string): Promise<unknown> };
-export type AuthSetup = { config: Config; users: UserActions; sessionStore: Store; admin?: AdminActions };
+export type AuthSetup = { config: Config; users: UserActions; sessionStore: Store; admin?: AdminActions;
+  playlists?: PlaylistService; channels?: ChannelService };
 
 export function createApp(db: HealthDatabase, auth?: AuthSetup): express.Express {
   const app = express();
@@ -52,6 +59,8 @@ export function createApp(db: HealthDatabase, auth?: AuthSetup): express.Express
     });
     app.use('/api/auth', userRoutes(auth.users));
     if (auth.admin) app.use('/api/admin', adminRoutes(auth.users, auth.admin));
+    if (auth.playlists) app.use('/api/playlists', playlistRoutes(auth.users, auth.playlists));
+    if (auth.channels) app.use('/api/channels', channelRoutes(auth.users, auth.channels));
   }
 
   app.get('/health', async (_request, response) => {
@@ -80,7 +89,10 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const store = new PgSession({ pool, tableName: 'session', createTableIfMissing: false });
   const users = new UserService(new UserRepository(db));
   const admin = new AdminService(users);
-  const app = createApp({ query: () => sql`SELECT 1`.execute(db) }, { config, users, admin, sessionStore: store });
+  const channelRepository = new ChannelRepository(db);
+  const channels = new ChannelService(channelRepository);
+  const playlists = new PlaylistService(new PlaylistRepository(db, channelRepository));
+  const app = createApp({ query: () => sql`SELECT 1`.execute(db) }, { config, users, admin, playlists, channels, sessionStore: store });
 
   const server = app.listen(config.port, '0.0.0.0');
   process.on('SIGTERM', () => {

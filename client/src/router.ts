@@ -6,6 +6,8 @@ import AdminUsersView from './views/AdminUsersView.vue';
 import LoginView from './views/LoginView.vue';
 import NotFoundView from './views/404.vue';
 import PlaceholderView from './views/PlaceholderView.vue';
+import LibraryView from './views/LibraryView.vue';
+import PlayerView from './views/PlayerView.vue';
 
 declare module 'vue-router' {
   interface RouteMeta {
@@ -31,12 +33,12 @@ const router = createRouter({
       props: { description: 'Your favorite channels will appear here.' },
       meta: { pageType: 'app', title: 'Home' }
     },
-    { path: '/library', name: 'library', component: PlaceholderView,
-      props: { description: 'Your channel library will appear here.' },
+    { path: '/library', name: 'library', component: LibraryView,
       meta: { pageType: 'app', title: 'Library' }
     },
-    { path: '/player', name: 'player', component: PlaceholderView,
-      props: { description: 'Playback, TV guide, and everything else will appear here.' },
+    { path: '/player',
+      name: 'player', 
+      component: PlayerView,
       meta: { pageType: 'app', title: 'Player' }
     },
     {

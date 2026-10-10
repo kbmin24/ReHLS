@@ -6,6 +6,7 @@ import { NotFoundError } from '../utils/errors/errors.js';
 
 const safeSource = (source: PlaylistSource) => ({
   id: source.id,
+  name: source.name,
   refreshInterval: source.refresh_interval,
   refreshStatus: source.refresh_status,
   lastAttemptAt: source.last_attempt_at,
@@ -17,10 +18,11 @@ const safeSource = (source: PlaylistSource) => ({
 export class PlaylistRepository {
   constructor(private readonly db: Kysely<Database>, private readonly channels: ChannelRepository) {}
 
-  async createSource(ownerId: string, url: string, refreshInterval: number | null) {
+  async createSource(ownerId: string, url: string, refreshInterval: number | null, name: string) {
     const source = await this.db.insertInto('playlist_sources').values({
       owner_id: ownerId,
       url,
+      name,
       refresh_interval: refreshInterval,
       last_attempt_at: null,
       last_success_at: null,
@@ -51,7 +53,7 @@ export class PlaylistRepository {
       await this.channels.replaceSnapshot(transaction, ownerId, sourceId, snapshot);
       const now = new Date();
       const updated = await transaction.updateTable('playlist_sources')
-        .set({ refresh_status: 'healthy', last_attempt_at: now, last_success_at: now, last_failure_code: null })
+        .set({ refresh_status: 'healthy', last_attempt_at: now, last_success_at: now, last_failure_code: null, lease_expires_at: null })
         .where('owner_id', '=', ownerId).where('id', '=', sourceId).returningAll().executeTakeFirst();
       if (!updated) throw new NotFoundError();
       return safeSource(updated);
@@ -63,11 +65,21 @@ export class PlaylistRepository {
       refresh_status: sql<'stale' | 'failed'>`case when last_success_at is null then 'failed' else 'stale' end`,
       last_attempt_at: now,
       last_failure_code: code,
+      lease_expires_at: null,
     }).where('owner_id', '=', ownerId).where('id', '=', sourceId).returningAll().executeTakeFirst();
   }
 
   removeOwned(ownerId: string, sourceId: string) {
     return this.db.deleteFrom('playlist_sources').where('owner_id', '=', ownerId).where('id', '=', sourceId)
       .returning('id').executeTakeFirst();
+  }
+
+  async requestRefresh(ownerId: string, sourceId: string) {
+    const updated = await this.db.updateTable('playlist_sources')
+      .set({ refresh_status: 'queued' })
+      .where('owner_id', '=', ownerId).where('id', '=', sourceId)
+      .returningAll().executeTakeFirst();
+    if (!updated) throw new NotFoundError();
+    return safeSource(updated);
   }
 }
