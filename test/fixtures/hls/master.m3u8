@@ -1,0 +1,6 @@
+#EXTM3U
+#EXT-X-VERSION:4
+#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="audio",NAME="English",DEFAULT=YES,AUTOSELECT=YES,URI="audio/en.m3u8?sig=audio"
+#EXT-X-I-FRAME-STREAM-INF:BANDWIDTH=150000,URI="https://other.example.org/frames.m3u8?sig=frames"
+#EXT-X-STREAM-INF:BANDWIDTH=800000,AUDIO="audio"
+low/index.m3u8?sig=variant

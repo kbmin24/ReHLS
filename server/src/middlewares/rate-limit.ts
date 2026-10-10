@@ -35,3 +35,11 @@ export const libraryRateLimit = () => rateLimit({
   legacyHeaders: false,
   handler: reject,
 });
+
+export const mediaRateLimit = () => rateLimit({
+  windowMs: 15 * 60_000,
+  limit: 2400,
+  standardHeaders: 'draft-8',
+  legacyHeaders: false,
+  handler: reject,
+});

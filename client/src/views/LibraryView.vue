@@ -94,7 +94,7 @@ onMounted(loadLibrary);
 </script>
 
 <template>
-  <main class="max-w-5xl px-5 py-10 mx-auto space-y-8 md:px-10">
+  <main class="space-y-8 py-10">
     <div class="flex items-center justify-between gap-4">
       <p class="text-base-content/70">Your playlist sources and channels.</p>
       <button type="button" class="btn btn-link btn-sm" :disabled="loading" @click="loadLibrary">Reload</button>

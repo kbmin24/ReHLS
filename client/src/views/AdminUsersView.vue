@@ -94,7 +94,7 @@ onMounted(loadUsers);
 </script>
 
 <template>
-  <main class="mx-auto max-w-5xl space-y-10 px-5 py-10 md:px-10">
+  <main class="space-y-10 py-10">
     <div>
       <p class="text-base-content/70">Create accounts and manage access to this ReHLS instance.</p>
     </div>

@@ -1,0 +1,11 @@
+#EXTM3U
+#EXT-X-VERSION:7
+#EXT-X-TARGETDURATION:6
+#EXT-X-MAP:URI="init.mp4?sig=map",BYTERANGE="4@0"
+#EXT-X-KEY:METHOD=AES-128,URI="keys/live.key?sig=key"
+#EXTINF:6.0,
+#EXT-X-BYTERANGE:4@10
+segments/live.ts?sig=segment
+#EXTINF:6.0,
+#EXT-X-BYTERANGE:4
+segments/live.ts?sig=segment

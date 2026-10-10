@@ -5,7 +5,7 @@ const adminMenus = [
 </script>
 
 <template>
-  <main class="mx-auto max-w-5xl px-5 py-10 md:px-10">
+  <main class="py-10">
     <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       <RouterLink v-for="menu in adminMenus" :key="menu.name" :to="{ name: menu.name }"
         class="card border border-base-content/10 bg-base-200 transition-colors hover:bg-base-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">

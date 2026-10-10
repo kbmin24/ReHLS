@@ -5,6 +5,9 @@ import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome';
 import { useSession } from '../composables/useSession';
 import { api, errorText } from '../api';
 
+const props = defineProps<{ maxWidth: '5xl' | '7xl' | 'none' }>();
+const contentWidthClass = computed(() => ({ '5xl': 'max-w-5xl', '7xl': 'max-w-7xl', none: '' })[props.maxWidth]);
+
 const route = useRoute();
 const router = useRouter();
 const session = useSession();
@@ -160,10 +163,10 @@ async function signOut() {
     </aside>
 
     <div class="flex-1 min-w-0 pb-24 md:pb-0">
-      <div class="max-w-5xl px-5 mx-auto pt-7 md:px-10 md:pt-9">
+      <div class="mx-auto px-5 pt-7 md:px-10 md:pt-9" :class="[contentWidthClass, route.name === 'player' && 'lg:flex lg:h-[100dvh] lg:flex-col']">
         <h1 class="text-3xl font-semibold tracking-tight">{{ pageTitle }}</h1>
+        <slot />
       </div>
-      <slot />
     </div>
 
     <nav aria-label="Mobile navigation" class="fixed inset-x-0 bottom-0 z-20 grid grid-cols-4 border-t border-base-content/15 bg-base-200 px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] text-center text-sm md:hidden">

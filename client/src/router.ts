@@ -14,6 +14,7 @@ declare module 'vue-router' {
     pageType?: 'special' | 'app' | 'admin' | 'user';
     requiresAdmin?: boolean;
     title?: string;
+    maxWidth?: '5xl' | '7xl' | 'none';
   }
 }
 
@@ -39,7 +40,7 @@ const router = createRouter({
     { path: '/player',
       name: 'player', 
       component: PlayerView,
-      meta: { pageType: 'app', title: 'Player' }
+      meta: { pageType: 'app', title: 'Player', maxWidth: 'none' }
     },
     {
       path: '/admin',
@@ -51,7 +52,7 @@ const router = createRouter({
       path: '/admin/users',
       name: 'admin-users',
       component: AdminUsersView,
-      meta: {requiresAdmin: true, pageType: 'admin', title: 'Accounts' }
+      meta: {requiresAdmin: true, pageType: 'admin', title: 'Accounts'}
     },
     {
       path: '/account',

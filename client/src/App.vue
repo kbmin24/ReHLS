@@ -9,6 +9,7 @@ const router = useRouter();
 const session = useSession();
 
 const pageType = computed(() => route.meta.pageType);
+const maxWidth = computed(() => route.meta.maxWidth ?? '5xl');
 
 async function retrySession() {
   await session.load(true);
@@ -26,7 +27,7 @@ async function retrySession() {
       <button type="button" class="mt-4 btn btn-link" @click="retrySession">Try again</button>
     </div>
     <template v-else>
-      <Navbar v-if="pageType !== 'special'"><RouterView /></Navbar>
+      <Navbar v-if="pageType !== 'special'" :max-width="maxWidth"><RouterView /></Navbar>
       <RouterView v-else />
     </template>
   </div>
