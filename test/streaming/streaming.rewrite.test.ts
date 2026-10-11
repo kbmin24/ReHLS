@@ -84,6 +84,20 @@ test('rejects malformed manifests before registering any resource', () => {
   }
 });
 
+test('rejects a variant URI separated from its stream tag', () => {
+  const { resources, register } = capture();
+  const text = '#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=800000\n#EXT-X-INDEPENDENT-SEGMENTS\nvariant.m3u8\n';
+  assert.throws(() => rewriteManifest(text, new URL('https://cdn.example.org/master.m3u8'), register), InvalidHlsError);
+  assert.deepEqual(resources, []);
+});
+
+test('rejects byte ranges without a compatible HLS version', () => {
+  const { resources, register } = capture();
+  const text = '#EXTM3U\n#EXT-X-TARGETDURATION:6\n#EXTINF:6,\n#EXT-X-BYTERANGE:4@0\nsegment.ts\n';
+  assert.throws(() => rewriteManifest(text, new URL('https://cdn.example.org/media.m3u8'), register), InvalidHlsError);
+  assert.deepEqual(resources, []);
+});
+
 test('rejects unhandled URI tags and unsupported resource URLs before registering', () => {
   for (const line of [
     '#EXT-X-SESSION-DATA:DATA-ID="metadata",URI="metadata.json?secret=value"',

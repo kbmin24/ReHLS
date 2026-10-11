@@ -1,5 +1,3 @@
-import { parse, setOptions } from 'hls-parser';
-
 export type ResourceKind = 'manifest' | 'segment' | 'map' | 'key';
 export type ByteRange = { offset: number; length: number };
 export type RegisterResource = (url: URL, kind: ResourceKind, range?: ByteRange) => string;
@@ -14,9 +12,6 @@ export class UnsupportedHlsError extends Error {
   constructor() { super('UNSUPPORTED_HLS'); }
 }
 
-// Suppress parser errors that might include upstream data, and reject malformed input.
-setOptions({ strictMode: true, silent: true });
-
 type Attribute = { value: string; start: number; end: number; quoted: boolean };
 type Reference = { line: number; start: number; end: number; url: URL; kind: ResourceKind; range?: ByteRange };
 
@@ -29,6 +24,13 @@ const supportedTags = new Set([
   'EXT-X-PROGRAM-DATE-TIME', 'EXT-X-BYTERANGE',
 ]);
 const uriTags = new Set(['EXT-X-MEDIA', 'EXT-X-I-FRAME-STREAM-INF', 'EXT-X-KEY', 'EXT-X-MAP']);
+const masterTags = new Set(['EXT-X-MEDIA', 'EXT-X-STREAM-INF', 'EXT-X-I-FRAME-STREAM-INF']);
+const mediaTags = new Set([
+  'EXTINF', 'EXT-X-TARGETDURATION', 'EXT-X-MEDIA-SEQUENCE',
+  'EXT-X-DISCONTINUITY-SEQUENCE', 'EXT-X-ENDLIST', 'EXT-X-PLAYLIST-TYPE',
+  'EXT-X-I-FRAMES-ONLY', 'EXT-X-DISCONTINUITY', 'EXT-X-KEY', 'EXT-X-MAP',
+  'EXT-X-PROGRAM-DATE-TIME', 'EXT-X-BYTERANGE',
+]);
 
 /**
  * Parses the attributes from a line in the HLS manifest.
@@ -85,6 +87,22 @@ function checkedRange(range?: ByteRange): ByteRange | undefined {
   return { offset, length };
 }
 
+function byteRange(value: string, previous?: ByteRange): ByteRange {
+  const match = /^(\d+)(?:@(\d+))?$/.exec(value);
+  if (!match) throw new InvalidHlsError();
+  const length = Number(match[1]);
+  const offset = match[2] === undefined ? previous && previous.offset + previous.length : Number(match[2]);
+  if (offset === undefined) throw new InvalidHlsError();
+  return checkedRange({ offset, length })!;
+}
+
+function positiveInteger(value: string): number {
+  if (!/^\d+$/.test(value)) throw new InvalidHlsError();
+  const number = Number(value);
+  if (!Number.isSafeInteger(number) || number < 1) throw new InvalidHlsError();
+  return number;
+}
+
 function checkSupportedTags(lines: string[], base: URL): void {
   if (lines[0] !== '#EXTM3U') throw new InvalidHlsError();
   for (const line of lines.slice(1)) {
@@ -132,12 +150,21 @@ export function rewriteManifest(text: string, finalUrl: URL, register: RegisterR
   const lines = text.split(/\r?\n/);
   checkSupportedTags(lines, finalUrl);
 
-  let parsed: ReturnType<typeof parse>;
-  try { parsed = parse(text); } catch { throw new InvalidHlsError(); }
+  const tags = lines.slice(1).filter((line) => line.startsWith('#')).map((line) => line.slice(1).split(':', 1)[0]!);
+  const isMaster = tags.some((tag) => masterTags.has(tag));
+  if (isMaster && tags.some((tag) => mediaTags.has(tag))) throw new InvalidHlsError();
   const rewritten = [...lines];
   const references: Reference[] = [];
-  let segmentIndex = 0;
+  let resourceCount = 0;
+  let normalVariantCount = 0;
+  let pendingVariant = false;
+  let pendingSegment = false;
   let pendingRangeLine: number | undefined;
+  let previousSegment: string | undefined;
+  let previousRange: ByteRange | undefined;
+  let targetDuration: number | undefined;
+  let version: number | undefined;
+  let requiredVersion = 1;
   let keyMethod: string | undefined;
   let keyIv = false;
 
@@ -145,25 +172,58 @@ export function rewriteManifest(text: string, finalUrl: URL, register: RegisterR
     const line = lines[index]!;
     if (!line) continue;
     if (!line.startsWith('#')) {
-      const kind = parsed.isMasterPlaylist ? 'manifest' : 'segment';
-      const range = parsed.isMasterPlaylist ? undefined : checkedRange(parsed.segments[segmentIndex]?.byterange);
-      if (!parsed.isMasterPlaylist && !parsed.segments[segmentIndex]) throw new InvalidHlsError();
+      if (isMaster ? !pendingVariant : !pendingSegment || !targetDuration) throw new InvalidHlsError();
+      let range: ByteRange | undefined;
+      if (pendingRangeLine !== undefined) {
+        const raw = lines[pendingRangeLine]!.slice('#EXT-X-BYTERANGE:'.length);
+        range = byteRange(raw, previousSegment === line ? previousRange : undefined);
+      }
       if (pendingRangeLine !== undefined && range && !lines[pendingRangeLine]!.includes('@')) {
         rewritten[pendingRangeLine] = `#EXT-X-BYTERANGE:${range.length}@${range.offset}`;
       }
-      references.push({ line: index, start: 0, end: line.length, url: resourceUrl(line, finalUrl), kind,
+      references.push({ line: index, start: 0, end: line.length, url: resourceUrl(line, finalUrl),
+        kind: isMaster ? 'manifest' : 'segment',
         ...(range ? { range } : {}) });
+      if (isMaster) normalVariantCount++;
+      previousSegment = line;
+      previousRange = range;
+      pendingVariant = false;
+      pendingSegment = false;
       pendingRangeLine = undefined;
-      segmentIndex++;
+      resourceCount++;
       continue;
     }
     const tag = line.slice(1).split(':', 1)[0]!;
+    if (pendingVariant && line.startsWith('#EXT')) throw new InvalidHlsError();
+    if (tag === 'EXT-X-VERSION') version = positiveInteger(line.slice('#EXT-X-VERSION:'.length));
+    if (tag === 'EXT-X-TARGETDURATION') targetDuration = positiveInteger(line.slice('#EXT-X-TARGETDURATION:'.length));
+    if (tag === 'EXTINF') {
+      const duration = /^#EXTINF:(\d+(?:\.\d+)?),/.exec(line)?.[1];
+      if (pendingSegment || !duration || !Number.isFinite(Number(duration)) || Number(duration) <= 0 ||
+          (targetDuration && Math.round(Number(duration)) > targetDuration)) throw new InvalidHlsError();
+      if (!Number.isInteger(Number(duration))) requiredVersion = Math.max(requiredVersion, 3);
+      pendingSegment = true;
+    }
+    if (tag === 'EXT-X-STREAM-INF') {
+      positiveInteger(attributes(line).get('BANDWIDTH')?.value ?? '');
+      pendingVariant = true;
+    }
     if (!uriTags.has(tag) && tag !== 'EXT-X-BYTERANGE') continue;
     if (tag === 'EXT-X-BYTERANGE') {
+      requiredVersion = Math.max(requiredVersion, 4);
+      if (!pendingSegment || pendingRangeLine !== undefined) throw new InvalidHlsError();
+      if (!/^(\d+)(?:@(\d+))?$/.test(line.slice('#EXT-X-BYTERANGE:'.length))) throw new InvalidHlsError();
       pendingRangeLine = index;
       continue;
     }
     const fields = attributes(line);
+    if (tag === 'EXT-X-MEDIA' && (!fields.has('TYPE') || !fields.has('GROUP-ID') || !fields.has('NAME'))) {
+      throw new InvalidHlsError();
+    }
+    if (tag === 'EXT-X-I-FRAME-STREAM-INF') {
+      positiveInteger(fields.get('BANDWIDTH')?.value ?? '');
+      requiredVersion = Math.max(requiredVersion, 4);
+    }
     if (tag === 'EXT-X-KEY') {
       keyMethod = fields.get('METHOD')?.value;
       keyIv = fields.has('IV');
@@ -175,22 +235,24 @@ export function rewriteManifest(text: string, finalUrl: URL, register: RegisterR
           (fields.get('KEYFORMATVERSIONS')?.value && fields.get('KEYFORMATVERSIONS')?.value !== '1')) {
         throw new UnsupportedHlsError();
       }
+      if (keyIv && !/^0[xX][0-9a-fA-F]{32}$/.test(fields.get('IV')!.value)) throw new InvalidHlsError();
+      if (fields.has('KEYFORMAT') || fields.has('KEYFORMATVERSIONS')) requiredVersion = Math.max(requiredVersion, 5);
     }
     let range: ByteRange | undefined;
     if (tag === 'EXT-X-MAP') {
+      requiredVersion = Math.max(requiredVersion, tags.includes('EXT-X-I-FRAMES-ONLY') ? 5 : 6);
       if (keyMethod === 'AES-128' && !keyIv) throw new UnsupportedHlsError();
       if (fields.has('BYTERANGE') && !fields.get('BYTERANGE')!.quoted) throw new InvalidHlsError();
-      if (parsed.isMasterPlaylist) throw new InvalidHlsError();
-      range = checkedRange(parsed.segments[segmentIndex]?.map?.byterange);
+      range = fields.has('BYTERANGE') ? byteRange(fields.get('BYTERANGE')!.value) : undefined;
     }
     const kind = tag === 'EXT-X-KEY' ? 'key' : tag === 'EXT-X-MAP' ? 'map' : 'manifest';
     const required = tag !== 'EXT-X-MEDIA';
     const ref = uriReference(fields, index, finalUrl, kind, required, range);
     if (ref) references.push(ref);
   }
-  if (pendingRangeLine !== undefined || segmentIndex === 0 ||
-      (parsed.isMasterPlaylist && !parsed.variants.some((variant) => !variant.isIFrameOnly)) ||
-      (!parsed.isMasterPlaylist && segmentIndex !== parsed.segments.length)) throw new InvalidHlsError();
+  if (pendingVariant || pendingSegment || pendingRangeLine !== undefined || resourceCount === 0 ||
+      (isMaster && normalVariantCount === 0) || (!isMaster && !targetDuration) ||
+      (version ?? 1) < requiredVersion) throw new InvalidHlsError();
 
   for (const ref of references) {
     const path = register(ref.url, ref.kind, ref.range);
