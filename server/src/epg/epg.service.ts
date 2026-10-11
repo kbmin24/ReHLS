@@ -9,17 +9,20 @@ import { parseGuideDocument, XMLTV_LIMITS, XmltvParseError } from './xmltv.parse
 
 type Fetcher = (url: URL, limits: FetchLimits, signal?: AbortSignal) => Promise<PublicFetchResult>;
 
-async function readGuide(response: Response): Promise<string> {
+async function readCompressedBody(response: Response): Promise<Buffer> {
   if (!response.body) throw new XmltvParseError('PARSE_FAILED');
-  const compressedChunks: Buffer[] = [];
-  let compressedSize = 0;
+  const chunks: Buffer[] = [];
+  let size = 0;
   for await (const chunk of Readable.fromWeb(response.body as Parameters<typeof Readable.fromWeb>[0])) {
     const bytes = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
-    compressedSize += bytes.byteLength;
-    if (compressedSize > XMLTV_LIMITS.maxCompressedBytes) throw new XmltvParseError('TOO_LARGE');
-    compressedChunks.push(bytes);
+    size += bytes.byteLength;
+    if (size > XMLTV_LIMITS.maxCompressedBytes) throw new XmltvParseError('TOO_LARGE');
+    chunks.push(bytes);
   }
-  const input = Buffer.concat(compressedChunks);
+  return Buffer.concat(chunks);
+}
+
+async function expandGuide(input: Buffer): Promise<string> {
   const gzip = input[0] === 0x1f && input[1] === 0x8b;
   const stream = gzip ? Readable.from(input).pipe(createGunzip()) : Readable.from(input);
   const chunks: Buffer[] = [];
@@ -34,6 +37,11 @@ async function readGuide(response: Response): Promise<string> {
     chunks.push(bytes);
   }
   return Buffer.concat(chunks).toString('utf8');
+}
+
+async function readGuide(response: Response): Promise<string> {
+  const compressedBody = await readCompressedBody(response);
+  return expandGuide(compressedBody);
 }
 
 export class EPGService {

@@ -4,6 +4,7 @@ import type { Database } from '../db/types.js';
 import { NotFoundError } from '../utils/errors/errors.js';
 import type { GuideSnapshot } from './xmltv.types.js';
 
+// avoids bombarding the DB
 const BATCH_SIZE = 200;
 
 export class EPGRepository {

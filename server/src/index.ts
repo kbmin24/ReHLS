@@ -28,24 +28,13 @@ import { StreamingService } from './streaming/streaming.service.js';
 import { streamingRoutes } from './streaming/streaming.routes.js';
 
 export type HealthDatabase = { query(sql: string): Promise<unknown> };
-export type AuthSetup = {
-  config: Config; users: UserActions; sessionStore: Store; admin?: AdminActions;
-  playlists?: PlaylistService; channels?: ChannelService; streaming?: StreamingService
-};
+export type AuthSetup = { config: Config; users: UserActions; sessionStore: Store; admin?: AdminActions;
+  playlists?: PlaylistService; channels?: ChannelService; streaming?: StreamingService };
 
 export function createApp(db: HealthDatabase, auth?: AuthSetup): express.Express {
   const app = express();
-  
   if (auth?.config.trustProxy) app.set('trust proxy', 1);
-  const useHttps = auth?.config.appOrigin.startsWith('https:') ?? false;
-
-  app.use(helmet({
-    contentSecurityPolicy: {
-      directives: { 'upgrade-insecure-requests': useHttps ? [] : null },
-    },
-    strictTransportSecurity: useHttps,
-  }));
-
+  app.use(helmet());
   app.use(publicRateLimit());
   app.use('/api/auth/login', loginRateLimit());
   app.use(express.json({ limit: '16kb' }));
@@ -60,7 +49,7 @@ export function createApp(db: HealthDatabase, auth?: AuthSetup): express.Express
       cookie: {
         httpOnly: true,
         sameSite: 'lax',
-        secure: useHttps,
+        secure: auth.config.appOrigin.startsWith('https:'),
         maxAge: 7 * 24 * 60 * 60_000,
       },
     }));

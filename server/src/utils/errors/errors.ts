@@ -1,5 +1,6 @@
 import type { ErrorRequestHandler } from 'express';
 import { app, rateLimit, user, validation, type ErrorCode } from './errorCodes.js';
+import { logger } from '../logger.js';
 
 type ErrorPayload = Record<string, unknown>;
 
@@ -56,6 +57,7 @@ export class RateLimitedError extends AppError {
 }
 
 export const errorHandler: ErrorRequestHandler = (error: unknown, _request, response, _next) => {
+  logger.error(error);
   if (error instanceof AppError) {
     response.status(error.status).json({ code: error.code, ...(error.payload === undefined ? {} : { payload: error.payload }) });
     return;

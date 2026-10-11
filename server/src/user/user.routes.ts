@@ -5,6 +5,7 @@ import { UnauthenticatedError } from '../utils/errors/errors.js';
 import { requireUser } from '../middlewares/auth.js';
 import { validate } from '../middlewares/validate.js';
 import type { AuthUser, UserService } from './user.service.js';
+import { logger } from '../utils/logger.js'
 
 export type UserActions = Pick<UserService, 'authenticate' | 'getActiveUser' | 'changeOwnPassword'>;
 
@@ -29,11 +30,13 @@ export function userRoutes(users: UserActions): Router {
     async (request, response) => {
       const user = await users.authenticate(request.body.username, request.body.password);
       await rotateSession(request, user);
+      logger.info(`User ${user.id} logged in`);
       response.json({ user });
     });
 
   router.post('/logout', async (request, response) => {
     await new Promise<void>((resolve, reject) => request.session.destroy((error) => error ? reject(error) : resolve()));
+    logger.info(`User ${request.authUser?.id} logged out`);
     response.clearCookie('rehls.sid');
     response.status(204).end();
   });
@@ -46,6 +49,7 @@ export function userRoutes(users: UserActions): Router {
     validate,
     async (request, response) => {
       const active = request.authUser;
+      logger.info(`Changing password for ${active?.id}`);
       if (!active) throw new UnauthenticatedError();
       const user = await users.changeOwnPassword(active.id, active.session_version,
         request.body.currentPassword, request.body.newPassword);
