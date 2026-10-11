@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { api, ApiError, errorText } from '../api';
 import { useSession } from '../composables/useSession';
@@ -12,6 +12,18 @@ const router = useRouter();
 const session = useSession();
 const sources = ref<Source[]>([]);
 const channels = ref<Channel[]>([]);
+const channelsPerPage = 25;
+const channelPage = ref(1);
+const channelPageCount = computed(() => Math.max(1, Math.ceil(channels.value.length / channelsPerPage)));
+const visibleChannels = computed(() => channels.value.slice(
+  (channelPage.value - 1) * channelsPerPage,
+  channelPage.value * channelsPerPage,
+));
+const firstVisibleChannel = computed(() => (channelPage.value - 1) * channelsPerPage + 1);
+const lastVisibleChannel = computed(() => Math.min(channelPage.value * channelsPerPage, channels.value.length));
+watch(channelPageCount, (count) => {
+  if (channelPage.value > count) channelPage.value = count;
+});
 const loading = ref(true);
 const error = ref('');
 const notice = ref('');
@@ -94,7 +106,7 @@ onMounted(loadLibrary);
 </script>
 
 <template>
-  <main class="space-y-8 py-10">
+  <main class="py-10 space-y-8">
     <div class="flex items-center justify-between gap-4">
       <p class="text-base-content/70">Your playlist sources and channels.</p>
       <button type="button" class="btn btn-link btn-sm" :disabled="loading" @click="loadLibrary">Reload</button>
@@ -140,12 +152,18 @@ onMounted(loadLibrary);
         <h2 id="channels-title" class="text-xl font-semibold">Channels</h2>
         <p v-if="channels.length === 0" class="mt-3 text-base-content/70">No channels yet.</p>
         <ul v-else class="mt-3 border divide-y divide-base-content/10 rounded-xl border-base-content/10 bg-base-200">
-          <li v-for="channel in channels" :key="channel.id" class="p-4">
-            <p class="font-medium">{{ channel.name }}</p>
-            <p v-if="channel.group || channel.tvgId" class="text-sm text-base-content/70">{{ channel.group || channel.tvgId }}</p>
-            <RouterLink :to="{ name: 'player', query: { channel: channel.id } }" class="btn btn-link btn-sm mt-2 px-0">Watch</RouterLink>
+          <li v-for="channel in visibleChannels" :key="channel.id" class="p-4">
+            <p><span class="font-medium">{{ channel.name }}</span> <span v-if="channel.group || channel.tvgId" class="text-sm text-base-content/70">{{ channel.group || channel.tvgId }}</span></p>
+            <RouterLink :to="{ name: 'player', query: { channel: channel.id } }" class="px-0 mt-2 btn btn-link btn-sm">Watch</RouterLink>
           </li>
         </ul>
+        <nav v-if="channelPageCount > 1" aria-label="Channel pages" class="flex flex-wrap items-center justify-between gap-3 mt-4">
+          <p class="text-sm text-base-content/70">Showing {{ firstVisibleChannel }}–{{ lastVisibleChannel }} of {{ channels.length }} channels · Page {{ channelPage }} of {{ channelPageCount }}</p>
+          <div class="flex gap-2">
+            <button type="button" class="btn btn-sm" :disabled="channelPage === 1" @click="channelPage--">Previous</button>
+            <button type="button" class="btn btn-sm" :disabled="channelPage === channelPageCount" @click="channelPage++">Next</button>
+          </div>
+        </nav>
       </section>
     </template>
   </main>

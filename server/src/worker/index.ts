@@ -4,12 +4,16 @@ import { sql } from 'kysely';
 import { ChannelRepository } from '../channel/channel.repository.js';
 import { PlaylistRepository } from '../playlist/playlist.repository.js';
 import { PlaylistService } from '../playlist/playlist.service.js';
-import { claimDueRefresh } from '../jobs/claim-due-refresh.js';
+import { ChannelService } from '../channel/channel.service.js';
+import { EPGRepository } from '../epg/epg.repository.js';
+import { EPGService } from '../epg/epg.service.js';
+import { claimDueEpgRefresh, claimDueRefresh } from '../jobs/claim-due-refresh.js';
 
 const db = createDb(loadConfig(process.env));
 await sql`SELECT 1`.execute(db);
 
 const playlists = new PlaylistService(new PlaylistRepository(db, new ChannelRepository(db)));
+const epg = new EPGService(new EPGRepository(db), new ChannelService(new ChannelRepository(db)));
 let stopping = false;
 async function poll(): Promise<void> {
   while (!stopping) {
@@ -18,8 +22,13 @@ async function poll(): Promise<void> {
       if (claim) {
         try { await playlists.refreshSource(claim.ownerId, claim.id); }
         catch { /* The source records a sanitized failure status. */ }
-        continue;
       }
+      const guideClaim = await claimDueEpgRefresh(db, new Date());
+      if (guideClaim) {
+        try { await epg.refreshSource(guideClaim.ownerId, guideClaim.id); }
+        catch { /* The source records a sanitized failure status. */ }
+      }
+      if (claim || guideClaim) continue;
     } catch {
       // A transient database failure should not spin the worker.
     }

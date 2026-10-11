@@ -16,15 +16,21 @@ const channels = ref<Channel[]>([]);
 const sources = ref<Source[]>([]);
 const activeSourceId = ref('');
 const activeCategory = ref('');
+const channelSearch = ref('');
 const channelCategories = (channel: Channel) => channel.group?.split(';').map((group) => group.trim()).filter(Boolean) ?? [];
 const sourceChannels = computed(() => activeSourceId.value
   ? channels.value.filter((channel) => channel.sourceId === activeSourceId.value) : channels.value);
 const categories = computed(() => [...new Set(sourceChannels.value
   .flatMap(channelCategories))].sort());
 const hasUncategorized = computed(() => sourceChannels.value.some((channel) => channelCategories(channel).length === 0));
-const visibleChannels = computed(() => sourceChannels.value.filter((channel) =>
-  !activeCategory.value || (activeCategory.value === 'uncategorized'
-    ? channelCategories(channel).length === 0 : channelCategories(channel).includes(activeCategory.value.slice(6)))));
+const visibleChannels = computed(() => {
+  const search = channelSearch.value.trim().toLowerCase();
+  return sourceChannels.value.filter((channel) => {
+    const matchesCategory = !activeCategory.value || (activeCategory.value === 'uncategorized'
+      ? channelCategories(channel).length === 0 : channelCategories(channel).includes(activeCategory.value.slice(6)));
+    return matchesCategory && channel.name.toLowerCase().includes(search);
+  });
+});
 const selectedChannel = computed(() => channels.value.find((channel) => channel.id === selectedId.value));
 const video = ref<HTMLVideoElement | null>(null);
 const selectedId = ref<string | null>(null);
@@ -169,7 +175,7 @@ onBeforeUnmount(() => { selection++; stopPlayback(); });
         class="order-1 w-full bg-black aspect-video card bg-base-200 lg:order-2 lg:h-full lg:w-auto rounded-xl"
         aria-label="Channel video" />
 
-      <div class="order-3 card bg-base-200 lg:col-span-2 lg:min-h-0 lg:overflow-y-auto">
+      <div class="order-3 card max-h-[48rem] overflow-y-auto bg-base-200 lg:col-span-2 lg:max-h-none lg:min-h-0">
         <div class="card-body">
           <div class="flex items-center justify-between gap-3">
             <h2 class="text-xl font-bold">Channels</h2>
@@ -180,12 +186,15 @@ onBeforeUnmount(() => { selection++; stopPlayback(); });
             No channels in this playlist. <RouterLink to="/library" class="link">Open your library</RouterLink>.
           </p>
           <div v-else class="space-y-3">
-            <select v-model="activeCategory" class="grid gap-1 select" aria-label="Channel category">
+            <div class="grid grid-cols-2 gap-2 sm:grid-cols-[12rem_minmax(0,1fr)]">
+              <select v-model="activeCategory" class="w-full min-w-0 select" aria-label="Channel category">
                 <option value="">All categories</option>
                 <option v-for="category in categories" :key="category" :value="'group:' + category">{{ category }}</option>
                 <option v-if="hasUncategorized" value="uncategorized">Uncategorized</option>
-            </select>
-            <p v-if="visibleChannels.length === 0" class="text-base-content/70">No channels in this category.</p>
+              </select>
+              <input v-model="channelSearch" type="search" class="w-full min-w-0 input" aria-label="Search channels" placeholder="Search channels" autocomplete="off" />
+            </div>
+            <p v-if="visibleChannels.length === 0" class="text-base-content/70">{{ channelSearch.trim() ? 'No channels match your search.' : 'No channels in this category.' }}</p>
             <div v-for="channel in visibleChannels" :key="channel.id"
               class="grid gap-2 sm:grid-cols-[12rem_minmax(0,1fr)]">
               <button type="button" class="p-3 font-medium text-left border rounded-lg min-h-20"

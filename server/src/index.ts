@@ -23,13 +23,16 @@ import { channelRoutes } from './channel/channel.routes.js';
 import { PlaylistRepository } from './playlist/playlist.repository.js';
 import { PlaylistService } from './playlist/playlist.service.js';
 import { playlistRoutes } from './playlist/playlist.routes.js';
+import { EPGRepository } from './epg/epg.repository.js';
+import { EPGService } from './epg/epg.service.js';
+import { epgRoutes } from './epg/epg.routes.js';
 import { ResourceRegistry } from './streaming/streaming.registry.js';
 import { StreamingService } from './streaming/streaming.service.js';
 import { streamingRoutes } from './streaming/streaming.routes.js';
 
 export type HealthDatabase = { query(sql: string): Promise<unknown> };
 export type AuthSetup = { config: Config; users: UserActions; sessionStore: Store; admin?: AdminActions;
-  playlists?: PlaylistService; channels?: ChannelService; streaming?: StreamingService };
+  playlists?: PlaylistService; channels?: ChannelService; epg?: EPGService; streaming?: StreamingService };
 
 export function createApp(db: HealthDatabase, auth?: AuthSetup): express.Express {
   const app = express();
@@ -64,6 +67,7 @@ export function createApp(db: HealthDatabase, auth?: AuthSetup): express.Express
     if (auth.admin) app.use('/api/admin', adminRoutes(auth.users, auth.admin));
     if (auth.playlists) app.use('/api/playlists', playlistRoutes(auth.users, auth.playlists));
     if (auth.channels) app.use('/api/channels', channelRoutes(auth.users, auth.channels));
+    if (auth.epg) app.use('/api/epg', epgRoutes(auth.users, auth.epg));
     if (auth.streaming) app.use('/api/media', streamingRoutes(auth.users, auth.streaming));
   }
 
@@ -96,9 +100,10 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const channelRepository = new ChannelRepository(db);
   const channels = new ChannelService(channelRepository);
   const playlists = new PlaylistService(new PlaylistRepository(db, channelRepository));
+  const epg = new EPGService(new EPGRepository(db), channels);
   const streaming = new StreamingService(channels, new ResourceRegistry({ maxEntries: 10_000, ttlMs: 2 * 60_000 }));
   const app = createApp({ query: () => sql`SELECT 1`.execute(db) },
-    { config, users, admin, playlists, channels, streaming, sessionStore: store });
+    { config, users, admin, playlists, channels, epg, streaming, sessionStore: store });
 
   const server = app.listen(config.port, '0.0.0.0');
   process.on('SIGTERM', () => {

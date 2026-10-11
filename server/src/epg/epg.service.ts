@@ -1,7 +1,8 @@
 import { createGunzip } from 'node:zlib';
 import { Readable } from 'node:stream';
 
-import { fetchPublic, PublicFetchError, type FetchLimits, type PublicFetchResult } from '../upstream/public-fetch.js';
+import type { ChannelService } from '../channel/channel.service.js';
+import { assertPublicUrl, fetchPublic, PublicFetchError, type FetchLimits, type PublicFetchResult } from '../upstream/public-fetch.js';
 import { AppError, NotFoundError } from '../utils/errors/errors.js';
 import { epg } from '../utils/errors/errorCodes.js';
 import { EPGRepository } from './epg.repository.js';
@@ -45,7 +46,60 @@ async function readGuide(response: Response): Promise<string> {
 }
 
 export class EPGService {
-  constructor(private readonly sources: EPGRepository, private readonly fetcher: Fetcher = fetchPublic) {}
+  constructor(
+    private readonly sources: EPGRepository,
+    private readonly channels: ChannelService,
+    private readonly fetcher: Fetcher = fetchPublic,
+  ) {}
+
+  async addSource(ownerId: string, value: string, refreshInterval: number | null) {
+    if (refreshInterval !== null && (!Number.isSafeInteger(refreshInterval) || refreshInterval < 60 || refreshInterval > 2_592_000)) {
+      throw new AppError(400, epg.INVALID_SOURCE);
+    }
+    let url: URL;
+    try {
+      url = new URL(value);
+      await assertPublicUrl(url);
+    } catch {
+      throw new AppError(400, epg.INVALID_SOURCE);
+    }
+    return this.sources.createSource(ownerId, url.href, refreshInterval);
+  }
+
+  listSources(ownerId: string) { return this.sources.listOwned(ownerId); }
+  requestRefresh(ownerId: string, sourceId: string) { return this.sources.requestRefresh(ownerId, sourceId); }
+  removeSource(ownerId: string, sourceId: string) { return this.sources.removeOwned(ownerId, sourceId); }
+  listGuideChannels(ownerId: string) { return this.sources.listGuideChannels(ownerId); }
+
+  /** Returns a manual match first, then a unique owned tvg-id match. */
+  async resolveGuideChannel(ownerId: string, channelId: string) {
+    const channel = await this.channels.getOwned(ownerId, channelId);
+    const manual = await this.sources.findManualMatch(ownerId, channelId);
+    if (manual) return { channel: manual, provenance: 'manual' as const };
+    if (!channel.tvgId) return null;
+    const matches = await this.sources.findAutomaticMatches(ownerId, channel.tvgId);
+    return matches.length === 1 ? { channel: matches[0]!, provenance: 'automatic' as const } : null;
+  }
+
+  async getChannelGuide(ownerId: string, channelId: string) {
+    const match = await this.resolveGuideChannel(ownerId, channelId);
+    const programs = match ? await this.sources.programsFor(match.channel.id, new Date()) :
+      { current: null, upcoming: [] };
+    return { match, ...programs };
+  }
+
+  async setOverride(ownerId: string, channelId: string, xmltvChannelId: string) {
+    await this.channels.getOwned(ownerId, channelId);
+    if (!await this.sources.findGuideChannel(ownerId, xmltvChannelId)) throw new NotFoundError();
+    await this.sources.setOverride(channelId, xmltvChannelId);
+    return this.getChannelGuide(ownerId, channelId);
+  }
+
+  async clearOverride(ownerId: string, channelId: string) {
+    await this.channels.getOwned(ownerId, channelId);
+    await this.sources.clearOverride(channelId);
+    return this.getChannelGuide(ownerId, channelId);
+  }
 
   /** Fetches and parses before replacing the last good owned snapshot. */
   async refreshSource(ownerId: string, sourceId: string): Promise<void> {

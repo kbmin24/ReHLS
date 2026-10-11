@@ -26,3 +26,27 @@ export async function claimDueRefresh(db: Kysely<Database>, now: Date): Promise<
   const row = result.rows[0];
   return row ? { id: row.id, ownerId: row.owner_id } : null;
 }
+
+/** Claims one due XMLTV source for 60 seconds; an expired claim can be retried. */
+export async function claimDueEpgRefresh(db: Kysely<Database>, now: Date): Promise<RefreshClaim | null> {
+  const result = await sql<{ id: string; owner_id: string }>`
+    UPDATE xmltv_sources
+    SET lease_expires_at = ${new Date(now.getTime() + 60_000)}
+    WHERE id = (
+      SELECT id
+      FROM xmltv_sources
+      WHERE COALESCE(lease_expires_at, '-infinity'::timestamptz) < ${now}
+        AND (
+          refresh_status = 'queued'
+          OR (refresh_interval IS NOT NULL
+            AND COALESCE(last_attempt_at, created_at) + refresh_interval * interval '1 second' <= ${now})
+        )
+      ORDER BY created_at, id
+      FOR UPDATE SKIP LOCKED
+      LIMIT 1
+    )
+    RETURNING id, owner_id;
+  `.execute(db);
+  const row = result.rows[0];
+  return row ? { id: row.id, ownerId: row.owner_id } : null;
+}

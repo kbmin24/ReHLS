@@ -90,6 +90,8 @@ export interface XmltvSourcesTable {
   created_at: Generated<Date>
 }
 
+export type XmltvSource = Selectable<XmltvSourcesTable>
+
 export interface XmltvChannelsTable {
   id: Generated<string>
   source_id: string
