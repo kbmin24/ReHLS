@@ -12,6 +12,7 @@ import { up as addNextRefresh } from '../../db/migrations/004_playlist_refresh_o
 import { up as addSourceName } from '../../db/migrations/005_playlist_source_name.js';
 import { up as createGuide } from '../../db/migrations/006_xmltv.js';
 import { up as addGuideSourceName } from '../../db/migrations/007_xmltv_source_name.js';
+import { up as addChannelLogo } from '../../db/migrations/008_channel_logo.js';
 import { ChannelRepository } from '../../server/src/channel/channel.repository.js';
 import { ChannelService } from '../../server/src/channel/channel.service.js';
 import type { Database } from '../../server/src/db/types.js';
@@ -29,6 +30,7 @@ test('guide matching requires a unique owned tvg-id and a manual override takes 
     try {
       await createCore(db);
       await createPlaylist(db);
+      await addChannelLogo(db);
       await addRefreshLease(db);
       await addNextRefresh(db);
       await addSourceName(db);

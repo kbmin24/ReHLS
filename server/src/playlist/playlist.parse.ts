@@ -6,6 +6,7 @@ export type ParsedChannel = {
   name: string;
   tvgId?: string;
   group?: string;
+  logoUrl?: string;
   url: string;
   matchKey: string;
 };
@@ -46,13 +47,21 @@ export function parseChannels(text: string): ParseChannelsResult {
     // normalise values
     const tvgId = entry.tvgId?.trim() || undefined;
     const group = entry.groupTitle?.trim() || undefined;
+    let logoUrl: string | undefined;
+    const rawLogo = entry.tvgLogo?.trim();
+    if (rawLogo && rawLogo.length <= 4096) {
+      try {
+        const logo = new URL(rawLogo);
+        if (['http:', 'https:'].includes(logo.protocol) && !logo.username && !logo.password) logoUrl = logo.href;
+      } catch { /* Ignore malformed optional logo metadata. */ }
+    }
     const identity = tvgId && tvgIdCounts.get(tvgId) === 1
       ? JSON.stringify(['tvg-id', tvgId])
       : JSON.stringify([name, tvgId, group, url.href]);
     const occurrence = occurrences.get(identity) ?? 0;
     occurrences.set(identity, occurrence + 1);
     const matchKey = createHash('sha256').update(identity).update(`:${occurrence}`).digest('hex');
-    channels.push({ name, tvgId, group, url: url.href, matchKey });
+    channels.push({ name, tvgId, group, logoUrl, url: url.href, matchKey });
   }
 
   return { channels, skipped: Math.max(0, declaredEntries - channels.length) };

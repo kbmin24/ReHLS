@@ -10,6 +10,7 @@ import { up as createPlaylist } from '../../db/migrations/002_playlist.js';
 import { up as addRefreshLease } from '../../db/migrations/003_playlist_refresh_lease.js';
 import { up as addNextRefresh } from '../../db/migrations/004_playlist_refresh_order_index.js';
 import { up as addSourceName } from '../../db/migrations/005_playlist_source_name.js';
+import { up as addChannelLogo } from '../../db/migrations/008_channel_logo.js';
 import { ChannelRepository } from '../../server/src/channel/channel.repository.js';
 import { ChannelService } from '../../server/src/channel/channel.service.js';
 import type { Database } from '../../server/src/db/types.js';
@@ -26,6 +27,7 @@ test('refresh replaces channels, retains matchable IDs, and preserves the last g
     try {
       await createCore(db);
       await createPlaylist(db);
+      await addChannelLogo(db);
       await addRefreshLease(db);
       await addNextRefresh(db);
       await addSourceName(db);

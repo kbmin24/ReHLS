@@ -28,6 +28,8 @@
     "@fortawesome/vue-fontawesome": "^3.3.3",
     "@iptv/playlist": "1.2.1",
     "@iptv/xmltv": "^1.0.1",
+    "@videojs/hlsjs-video": "^10.0.1",
+    "@videojs/html": "^10.0.1",
     "argon2": "0.45.1",
     "connect-pg-simple": "10.0.0",
     "express": "5.2.1",

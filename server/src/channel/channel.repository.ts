@@ -6,6 +6,7 @@ export type ChannelSnapshot = {
   name: string;
   tvgId?: string;
   group?: string;
+  logoUrl?: string;
   url: string;
   matchKey: string;
 };
@@ -16,7 +17,7 @@ export class ChannelRepository {
   listOwned(ownerId: string) {
     return this.db.selectFrom('channels')
       .innerJoin('playlist_sources', 'playlist_sources.id', 'channels.source_id')
-      .select(['channels.id', 'channels.source_id', 'channels.name', 'channels.tvg_id', 'channels.group_title'])
+      .select(['channels.id', 'channels.source_id', 'channels.name', 'channels.tvg_id', 'channels.group_title', 'channels.logo_url'])
       .where('playlist_sources.owner_id', '=', ownerId)
       .orderBy('channels.name').orderBy('channels.id').execute();
   }
@@ -24,7 +25,7 @@ export class ChannelRepository {
   getOwned(ownerId: string, channelId: string) {
     return this.db.selectFrom('channels')
       .innerJoin('playlist_sources', 'playlist_sources.id', 'channels.source_id')
-      .select(['channels.id', 'channels.source_id', 'channels.name', 'channels.tvg_id', 'channels.group_title', 'channels.stream_url'])
+      .select(['channels.id', 'channels.source_id', 'channels.name', 'channels.tvg_id', 'channels.group_title', 'channels.logo_url', 'channels.stream_url'])
       .where('channels.id', '=', channelId)
       .where('playlist_sources.owner_id', '=', ownerId).executeTakeFirst();
   }
@@ -41,12 +42,14 @@ export class ChannelRepository {
         name: channel.name,
         tvg_id: channel.tvgId ?? null,
         group_title: channel.group ?? null,
+        logo_url: channel.logoUrl ?? null,
         stream_url: channel.url,
         match_key: channel.matchKey,
       }))).onConflict((conflict) => conflict.columns(['source_id', 'match_key']).doUpdateSet((update) => ({
         name: update.ref('excluded.name'),
         tvg_id: update.ref('excluded.tvg_id'),
         group_title: update.ref('excluded.group_title'),
+        logo_url: update.ref('excluded.logo_url'),
         stream_url: update.ref('excluded.stream_url'),
       }))).execute();
     }

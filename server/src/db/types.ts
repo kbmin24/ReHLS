@@ -68,6 +68,7 @@ export interface ChannelsTable {
   name: string
   tvg_id: string | null
   group_title: string | null
+  logo_url: Generated<string | null>
   stream_url: string
   match_key: string
   created_at: Generated<Date>

@@ -14,6 +14,7 @@ import { up as addNextRefresh } from '../../db/migrations/004_playlist_refresh_o
 import { up as addSourceName } from '../../db/migrations/005_playlist_source_name.js';
 import { up as createGuide } from '../../db/migrations/006_xmltv.js';
 import { up as addGuideSourceName } from '../../db/migrations/007_xmltv_source_name.js';
+import { up as addChannelLogo } from '../../db/migrations/008_channel_logo.js';
 import { ChannelRepository } from '../../server/src/channel/channel.repository.js';
 import { ChannelService } from '../../server/src/channel/channel.service.js';
 import type { Database } from '../../server/src/db/types.js';
@@ -23,6 +24,7 @@ import { EPGService } from '../../server/src/epg/epg.service.js';
 import { claimDueRefresh } from '../../server/src/jobs/claim-due-refresh.js';
 import { PlaylistRepository } from '../../server/src/playlist/playlist.repository.js';
 import { PlaylistService } from '../../server/src/playlist/playlist.service.js';
+import { fetchPublic } from '../../server/src/upstream/public-fetch.js';
 
 test('playlist and guide APIs isolate accounts and retain snapshots after failed refresh',
   { skip: !process.env.DATABASE_URL }, async () => {
@@ -34,6 +36,7 @@ test('playlist and guide APIs isolate accounts and retain snapshots after failed
     try {
       await createCore(db);
       await createPlaylist(db);
+      await addChannelLogo(db);
       await addRefreshLease(db);
       await addNextRefresh(db);
       await addSourceName(db);
@@ -52,8 +55,12 @@ test('playlist and guide APIs isolate accounts and retain snapshots after failed
         .returningAll().executeTakeFirstOrThrow();
       const users = [first, second];
       const channelRepository = new ChannelRepository(db);
-      const channels = new ChannelService(channelRepository);
-      let content = '#EXTM3U\n#EXTINF:-1 tvg-id="one",One\nhttps://streams.example.org/one.m3u8\n';
+      let logoContentType = 'image/png';
+      const channels = new ChannelService(channelRepository, async (url, limits, signal) =>
+        url.hostname === '127.0.0.1' ? fetchPublic(url, limits, signal) : {
+          response: new Response('PNG', { headers: { 'content-type': logoContentType } }), finalUrl: url,
+        });
+      let content = '#EXTM3U\n#EXTINF:-1 tvg-id="one" tvg-logo="https://logos.example.org/one.png?secret=hidden",One\nhttps://streams.example.org/one.m3u8\n';
       const playlists = new PlaylistService(new PlaylistRepository(db, channelRepository), async (url) =>
         ({ response: new Response(content), finalUrl: url }));
       const guideNow = Date.now();
@@ -112,9 +119,32 @@ test('playlist and guide APIs isolate accounts and retain snapshots after failed
         ]);
         assert.deepEqual(retried.map((claim) => claim?.id ?? null).sort(), [null, sourceId].sort());
         await playlists.refreshSource(first.id, sourceId);
-        const firstChannels = await (await request(firstCookie, '/api/channels')).json() as { channels: { id: string }[] };
+        const firstChannels = await (await request(firstCookie, '/api/channels')).json() as
+          { channels: { id: string; hasLogo?: boolean }[] };
         assert.equal(firstChannels.channels.length, 1);
+        assert.equal(firstChannels.channels[0]?.hasLogo, true);
+        assert.equal(JSON.stringify(firstChannels).includes('secret=hidden'), false);
+        const savedLogo = await db.selectFrom('channels').select('logo_url')
+          .where('id', '=', firstChannels.channels[0]!.id).executeTakeFirstOrThrow();
+        assert.equal(savedLogo.logo_url, 'https://logos.example.org/one.png?secret=hidden');
         const channelId = firstChannels.channels[0]!.id;
+        const logo = await request(firstCookie, `/api/channels/${channelId}/logo`);
+        assert.equal(logo.status, 200);
+        assert.equal(logo.headers.get('content-type'), 'image/png');
+        assert.equal(logo.headers.get('cache-control'), 'no-store');
+        assert.equal(await logo.text(), 'PNG');
+        assert.equal((await request(secondCookie, `/api/channels/${channelId}/logo`)).status, 404);
+        logoContentType = 'image/svg+xml';
+        const unsupportedLogo = await request(firstCookie, `/api/channels/${channelId}/logo`);
+        assert.equal(unsupportedLogo.status, 502);
+        assert.deepEqual(await unsupportedLogo.json(), { code: { service: 'channel', cause: 'LOGO_UNAVAILABLE' } });
+        logoContentType = 'image/png';
+        await db.updateTable('channels').set({ logo_url: 'http://127.0.0.1/private.png?secret=hidden' })
+          .where('id', '=', channelId).execute();
+        const unsafeLogo = await request(firstCookie, `/api/channels/${channelId}/logo`);
+        assert.equal(unsafeLogo.status, 502);
+        assert.equal(JSON.stringify(await unsafeLogo.json()).includes('secret=hidden'), false);
+        await db.updateTable('channels').set({ logo_url: savedLogo.logo_url }).where('id', '=', channelId).execute();
         const secondPlaylist = await playlists.addSource(second.id, 'https://8.8.8.8/second.m3u', null);
         await playlists.refreshSource(second.id, secondPlaylist.id);
         const secondChannels = await (await request(secondCookie, '/api/channels')).json() as { channels: { id: string }[] };

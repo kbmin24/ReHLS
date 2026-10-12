@@ -6,7 +6,7 @@ import { RateLimitedError } from '../utils/errors/errors.js';
 const reject = () => { throw new RateLimitedError(); };
 
 export const publicRateLimit = () => rateLimit({
-  windowMs: 15 * 60_000,
+  windowMs: 1 * 60_000,
   limit: 100,
   skip: (request) => request.path.startsWith('/api/media/'),
   standardHeaders: 'draft-8',

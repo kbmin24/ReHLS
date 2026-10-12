@@ -29,6 +29,22 @@ https://streams.example.org/new.m3u8
   assert.equal(after.channels[0]?.matchKey, before.channels[0]?.matchKey);
 });
 
+test('retains an HTTP logo without making it part of channel identity', () => {
+  const before = parseChannels(`#EXTM3U\n#EXTINF:-1 tvg-id="news" tvg-logo="https://logos.example.org/old.png?key=secret",News\nhttps://streams.example.org/live.m3u8\n`);
+  const after = parseChannels(`#EXTM3U\n#EXTINF:-1 tvg-id="news" tvg-logo="https://logos.example.org/new.png?key=secret",News\nhttps://streams.example.org/live.m3u8\n`);
+
+  assert.equal(before.channels[0]?.logoUrl, 'https://logos.example.org/old.png?key=secret');
+  assert.equal(after.channels[0]?.logoUrl, 'https://logos.example.org/new.png?key=secret');
+  assert.equal(after.channels[0]?.matchKey, before.channels[0]?.matchKey);
+});
+
+test('ignores logos with unsafe URL syntax without dropping their channels', () => {
+  const parsed = parseChannels(`#EXTM3U\n#EXTINF:-1 tvg-logo="http://user:pass@logos.example.org/private.png",Credentials\nhttps://streams.example.org/one.m3u8\n#EXTINF:-1 tvg-logo="javascript:alert(1)",Script\nhttps://streams.example.org/two.m3u8\n`);
+
+  assert.equal(parsed.channels.length, 2);
+  assert.deepEqual(parsed.channels.map((channel) => channel.logoUrl), [undefined, undefined]);
+});
+
 test('distinct duplicate entries retain match keys when reordered', () => {
   const first = `#EXTM3U
 #EXTINF:-1 tvg-id="news",News

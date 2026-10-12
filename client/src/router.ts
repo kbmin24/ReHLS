@@ -9,6 +9,7 @@ import PlaceholderView from './views/PlaceholderView.vue';
 import LibraryView from './views/LibraryView.vue';
 import PlayerView from './views/PlayerView.vue';
 import GuideView from './views/GuideView.vue';
+import GuideSourcesView from './views/GuideSourcesView.vue';
 
 declare module 'vue-router' {
   interface RouteMeta {
@@ -35,11 +36,14 @@ const router = createRouter({
       props: { description: 'Your favorite channels will appear here.' },
       meta: { pageType: 'app', title: 'Home' }
     },
-    { path: '/library', name: 'library', component: LibraryView,
+    { path: '/account/library', name: 'library', component: LibraryView,
       meta: { pageType: 'app', title: 'Library' }
     },
+    { path: '/account/guide_sources', name: 'guide_sources', component: GuideSourcesView,
+      meta: { pageType: 'app', title: 'Guide settings' }
+    },
     { path: '/guide', name: 'guide', component: GuideView,
-      meta: { pageType: 'app', title: 'Guide' }
+      meta: { pageType: 'app', title: 'Guide', maxWidth: 'none' }
     },
     { path: '/player',
       name: 'player', 
