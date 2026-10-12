@@ -33,9 +33,31 @@ test('rejects invalid time, out-of-window-only data, and expanded-size excess', 
   assert.throws(() => parseGuideDocument(fixture, { ...XMLTV_LIMITS, maxExpandedBytes: 10 }, window), XmltvParseError);
 });
 
+test('identifies which declared entry count exceeds a guide limit', () => {
+  assert.throws(() => parseGuideDocument(fixture, { ...XMLTV_LIMITS, maxChannels: 0 }, window),
+    (error: unknown) => error instanceof XmltvParseError && error.reason === 'CHANNEL_COUNT');
+  assert.throws(() => parseGuideDocument(fixture, { ...XMLTV_LIMITS, maxPrograms: 0 }, window),
+    (error: unknown) => error instanceof XmltvParseError && error.reason === 'PROGRAM_COUNT');
+});
+
 test('collapses identical program entries within one source', () => {
   const duplicate = fixture.replace('</tv>', `${fixture.match(/<programme[\s\S]*?<\/programme>/)?.[0]}</tv>`);
   assert.equal(parseGuideDocument(duplicate, XMLTV_LIMITS, window).programs.length, 1);
+});
+
+test('skips programmes with blank titles or invalid time ranges while retaining valid programmes', () => {
+  const invalid = [
+    '<programme channel="news.example" start="20261010110000 +0000" stop="20261010120000 +0000"><title/></programme>',
+    '<programme channel="news.example" start="20261010120000 +0000" stop="20261010130000 +0000"><title>  </title></programme>',
+    '<programme channel="news.example" start="20261010130000 +0000" stop="20261010130000 +0000"><title>Zero duration</title></programme>',
+  ].join('');
+  const mixed = fixture.replace('</tv>', `${invalid}</tv>`);
+  const guide = parseGuideDocument(mixed, XMLTV_LIMITS, window);
+  assert.deepEqual(guide.programs.map((program) => program.title), ['Morning News']);
+
+  const onlyInvalid = mixed.replace(/<programme[\s\S]*?<\/programme>/, '');
+  assert.throws(() => parseGuideDocument(onlyInvalid, XMLTV_LIMITS, window),
+    (error: unknown) => error instanceof XmltvParseError && error.code === 'EMPTY_GUIDE');
 });
 
 test('decodes safe XML entities in guide text', () => {

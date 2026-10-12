@@ -3,12 +3,15 @@ import { parseXmltv as parseLibraryXmltv } from '@iptv/xmltv';
 import type { GuideSnapshot, XmltvLimits, XmltvWindow } from './xmltv.types.js';
 
 export class XmltvParseError extends Error {
-  constructor(public readonly code: 'PARSE_FAILED' | 'EMPTY_GUIDE' | 'TOO_LARGE') { super(code); }
+  constructor(public readonly code: 'PARSE_FAILED' | 'EMPTY_GUIDE' | 'TOO_LARGE',
+    public readonly reason?: 'DOWNLOAD_BYTES' | 'EXPANDED_BYTES' | 'TAG_TEXT_BYTES' | 'CHANNEL_COUNT' | 'PROGRAM_COUNT') {
+    super(code);
+  }
 }
 
 export const XMLTV_LIMITS: XmltvLimits = {
-  maxCompressedBytes: 16 * 1024 * 1024,
-  maxExpandedBytes: 64 * 1024 * 1024,
+  maxCompressedBytes: 1024 * 1024 * 1024,
+  maxExpandedBytes: 2048 * 1024 * 1024,
   maxChannels: 20_000,
   maxPrograms: 200_000,
   maxTextLength: 4_096,
@@ -49,7 +52,7 @@ function normalizeText(value: unknown, maxLength: number): string {
 function preflight(xml: string, limits: XmltvLimits): void {
   // Test size
   if (Buffer.byteLength(xml, 'utf8') > limits.maxExpandedBytes)
-    throw new XmltvParseError('TOO_LARGE');
+    throw new XmltvParseError('TOO_LARGE', 'EXPANDED_BYTES');
   // Test if we get unexpected file type
   if (/<!\s*(?:DOCTYPE|ENTITY)\b/i.test(xml))
     throw new XmltvParseError('PARSE_FAILED');
@@ -61,7 +64,7 @@ function preflight(xml: string, limits: XmltvLimits): void {
     const token = match[0];
     const tagStart = match.index!;
     if (tagStart - cursor > limits.maxTextLength * 16) {
-      throw new XmltvParseError('TOO_LARGE');
+      throw new XmltvParseError('TOO_LARGE', 'TAG_TEXT_BYTES');
     }
     cursor = tagStart + token.length;
     if (token.startsWith('</')) depth--;
@@ -114,13 +117,15 @@ function extractPrograms(parsed: ReturnType<typeof parseLibraryXmltv>,
     if (!(startsAt instanceof Date) || !(endsAt instanceof Date) ||
       !Number.isFinite(startsAt.getTime()) || !Number.isFinite(endsAt.getTime()) ||
       endsAt <= startsAt) {
-        throw new XmltvParseError('PARSE_FAILED');
+        continue;
     }
 
     if (!(endsAt > window.startsAt && startsAt < window.endsAt))
       continue; // out of range
 
-    const title = normalizeText(program.title?.[0]?._value, limits.maxTextLength);
+    const titleValue = program.title?.[0]?._value;
+    if (typeof titleValue !== 'string' || !titleValue.trim()) continue;
+    const title = normalizeText(titleValue, limits.maxTextLength);
 
     const key = JSON.stringify([xmltvId, startsAt.getTime(), endsAt.getTime(), title]);
 
@@ -133,7 +138,8 @@ function extractPrograms(parsed: ReturnType<typeof parseLibraryXmltv>,
 }
 
 /** Normalizes a bounded XMLTV document; callers bound download, decompression, and time. */
-export function parseGuideDocument(xml: string, limits: XmltvLimits, window: XmltvWindow): GuideSnapshot {
+export function parseGuideDocument(xml: string, limits: XmltvLimits, window: XmltvWindow,
+  onParsedCounts?: (channels: number, programs: number) => void): GuideSnapshot {
   preflight(xml, limits);
   let parsed: ReturnType<typeof parseLibraryXmltv>;
   try {
@@ -142,10 +148,12 @@ export function parseGuideDocument(xml: string, limits: XmltvLimits, window: Xml
     throw new XmltvParseError('PARSE_FAILED');
   }
 
+  onParsedCounts?.(parsed.channels?.length ?? 0, parsed.programmes?.length ?? 0);
   // determine if the parsed document is too large
-  if ((parsed.channels?.length ?? 0) > limits.maxChannels ||
-    (parsed.programmes?.length ?? 0) > limits.maxPrograms)
-    throw new XmltvParseError('TOO_LARGE');
+  if ((parsed.channels?.length ?? 0) > limits.maxChannels)
+    throw new XmltvParseError('TOO_LARGE', 'CHANNEL_COUNT');
+  if ((parsed.programmes?.length ?? 0) > limits.maxPrograms)
+    throw new XmltvParseError('TOO_LARGE', 'PROGRAM_COUNT');
 
   const [channels, channelIds] = extractChannels(parsed, limits);
   const programs = extractPrograms(parsed, limits, channelIds, window);

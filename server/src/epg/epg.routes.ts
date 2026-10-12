@@ -8,6 +8,7 @@ import type { UserActions } from '../user/user.routes.js';
 
 type GuideSource = {
   id: string;
+  name: string;
   refreshInterval: number | null;
   refreshStatus: 'queued' | 'healthy' | 'stale' | 'failed';
   lastAttemptAt: Date | null;
@@ -27,11 +28,12 @@ type ChannelGuide = {
 /** API-facing guide operations; ownership is checked again in the service. */
 export type EPGActions = {
   listSources(ownerId: string): Promise<GuideSource[]>;
-  addSource(ownerId: string, url: string, refreshInterval: number | null): Promise<GuideSource>;
+  addSource(ownerId: string, url: string, refreshInterval: number | null, name?: string | null): Promise<GuideSource>;
   requestRefresh(ownerId: string, sourceId: string): Promise<GuideSource>;
   removeSource(ownerId: string, sourceId: string): Promise<void>;
   listGuideChannels(ownerId: string): Promise<GuideChannel[]>;
   getChannelGuide(ownerId: string, channelId: string): Promise<ChannelGuide>;
+  getProgramGrid(ownerId: string, channelIds: string[]): Promise<unknown>;
   setOverride(ownerId: string, channelId: string, xmltvChannelId: string): Promise<ChannelGuide>;
   clearOverride(ownerId: string, channelId: string): Promise<ChannelGuide>;
 };
@@ -45,11 +47,12 @@ export function epgRoutes(users: UserActions, epg: EPGActions): Router {
   });
   router.post('/sources',
     body('url').isString().isLength({ min: 1, max: 4096 }),
+    body('name').optional({ nullable: true }).isString().trim().isLength({ max: 255 }),
     body('refreshInterval').optional({ nullable: true }).isInt({ min: 60, max: 2_592_000 }).toInt(),
     validate,
     async (request, response) => {
       const source = await epg.addSource(request.authUser!.id, request.body.url,
-        request.body.refreshInterval ?? null);
+        request.body.refreshInterval ?? null, request.body.name);
       response.status(201).json({ source });
     });
   router.post('/sources/:id/refresh', param('id').isUUID(), validate, async (request, response) => {
@@ -66,6 +69,12 @@ export function epgRoutes(users: UserActions, epg: EPGActions): Router {
   router.get('/channels/:channelId/guide', param('channelId').isUUID(), validate, async (request, response) => {
     response.json(await epg.getChannelGuide(request.authUser!.id, request.params.channelId as string));
   });
+  router.post('/grid',
+    body('channelIds').isArray({ min: 1, max: 500 }),
+    body('channelIds.*').isUUID(), validate,
+    async (request, response) => {
+      response.json(await epg.getProgramGrid(request.authUser!.id, request.body.channelIds));
+    });
   router.put('/channels/:channelId/mapping',
     param('channelId').isUUID(), body('xmltvChannelId').isUUID(), validate,
     async (request, response) => {

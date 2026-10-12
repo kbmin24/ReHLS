@@ -40,6 +40,7 @@ export function createApp(db: HealthDatabase, auth?: AuthSetup): express.Express
   app.use(helmet());
   app.use(publicRateLimit());
   app.use('/api/auth/login', loginRateLimit());
+  app.use('/api/epg/grid', express.json({ limit: '128kb' }));
   app.use(express.json({ limit: '16kb' }));
 
   if (auth) {

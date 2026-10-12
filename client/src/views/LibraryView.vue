@@ -109,7 +109,10 @@ onMounted(loadLibrary);
   <main class="py-10 space-y-8">
     <div class="flex items-center justify-between gap-4">
       <p class="text-base-content/70">Your playlist sources and channels.</p>
-      <button type="button" class="btn btn-link btn-sm" :disabled="loading" @click="loadLibrary">Reload</button>
+      <div class="flex flex-wrap items-center gap-2">
+        <RouterLink :to="{ name: 'guide' }" class="btn btn-link btn-sm">Guide</RouterLink>
+        <button type="button" class="btn btn-link btn-sm" :disabled="loading" @click="loadLibrary">Reload</button>
+      </div>
     </div>
     <p v-if="loading" role="status">Loading library...</p>
     <p v-if="error" role="alert" class="alert alert-error">{{ error }}</p>
@@ -149,12 +152,16 @@ onMounted(loadLibrary);
         </ul>
       </section>
       <section aria-labelledby="channels-title">
-        <h2 id="channels-title" class="text-xl font-semibold">Channels</h2>
+        <h2 id="channels-title" class="text-xl font-semibold">Imported Channels</h2>
         <p v-if="channels.length === 0" class="mt-3 text-base-content/70">No channels yet.</p>
         <ul v-else class="mt-3 border divide-y divide-base-content/10 rounded-xl border-base-content/10 bg-base-200">
-          <li v-for="channel in visibleChannels" :key="channel.id" class="p-4">
-            <p><span class="font-medium">{{ channel.name }}</span> <span v-if="channel.group || channel.tvgId" class="text-sm text-base-content/70">{{ channel.group || channel.tvgId }}</span></p>
-            <RouterLink :to="{ name: 'player', query: { channel: channel.id } }" class="px-0 mt-2 btn btn-link btn-sm">Watch</RouterLink>
+          <li v-for="channel in visibleChannels" :key="channel.id" class="flex flex-wrap justify-between p-4">
+            <div><p><span class="font-medium">{{ channel.name }}</span> <span v-if="channel.group || channel.tvgId" class="text-sm text-base-content/70">{{ channel.group || channel.tvgId }}</span></p></div>
+            <RouterLink :to="{ name: 'player', query: { channel: channel.id } }" custom v-slot="{ navigate }">
+              <button @click="navigate" class="flex gap-2 btn btn-sm">
+                Watch
+              </button>
+            </RouterLink>
           </li>
         </ul>
         <nav v-if="channelPageCount > 1" aria-label="Channel pages" class="flex flex-wrap items-center justify-between gap-3 mt-4">

@@ -13,6 +13,7 @@ import { up as addRefreshLease } from '../../db/migrations/003_playlist_refresh_
 import { up as addNextRefresh } from '../../db/migrations/004_playlist_refresh_order_index.js';
 import { up as addSourceName } from '../../db/migrations/005_playlist_source_name.js';
 import { up as createGuide } from '../../db/migrations/006_xmltv.js';
+import { up as addGuideSourceName } from '../../db/migrations/007_xmltv_source_name.js';
 import { ChannelRepository } from '../../server/src/channel/channel.repository.js';
 import { ChannelService } from '../../server/src/channel/channel.service.js';
 import type { Database } from '../../server/src/db/types.js';
@@ -37,6 +38,14 @@ test('playlist and guide APIs isolate accounts and retain snapshots after failed
       await addNextRefresh(db);
       await addSourceName(db);
       await createGuide(db);
+      const legacyOwner = await db.insertInto('users').values({ username: 'legacy', password_hash: 'unused', role: 'user', session_version: 0 })
+        .returning('id').executeTakeFirstOrThrow();
+      const legacyGuide = await db.insertInto('xmltv_sources').values({
+        owner_id: legacyOwner.id, url: 'https://8.8.8.8/guides/My%20Guide.xml?secret=hidden', refresh_interval: null,
+      } as any).returning('id').executeTakeFirstOrThrow();
+      await addGuideSourceName(db);
+      const backfilled = await db.selectFrom('xmltv_sources').select('name').where('id', '=', legacyGuide.id).executeTakeFirstOrThrow();
+      assert.equal(backfilled.name, 'My Guide.xml');
       const first = await db.insertInto('users').values({ username: 'first', password_hash: 'unused', role: 'user', session_version: 0 })
         .returningAll().executeTakeFirstOrThrow();
       const second = await db.insertInto('users').values({ username: 'second', password_hash: 'unused', role: 'user', session_version: 0 })
@@ -112,10 +121,11 @@ test('playlist and guide APIs isolate accounts and retain snapshots after failed
         const secondChannelId = secondChannels.channels[0]!.id;
 
         const addedGuide = await request(firstCookie, '/api/epg/sources', 'POST',
-          { url: 'https://8.8.8.8/guide.xml?secret=hidden', refreshInterval: 60 });
+          { url: 'https://8.8.8.8/guide.xml?secret=hidden', name: '   ', refreshInterval: 60 });
         assert.equal(addedGuide.status, 201);
-        const guideBody = await addedGuide.json() as { source: { id: string; refreshStatus: string } };
+        const guideBody = await addedGuide.json() as { source: { id: string; name: string; refreshStatus: string } };
         const guideSourceId = guideBody.source.id;
+        assert.equal(guideBody.source.name, 'guide.xml');
         assert.equal(guideBody.source.refreshStatus, 'queued');
         assert.equal(JSON.stringify(guideBody).includes('secret=hidden'), false);
         const invalidGuide = await request(firstCookie, '/api/epg/sources', 'POST',
@@ -144,6 +154,19 @@ test('playlist and guide APIs isolate accounts and retain snapshots after failed
         assert.equal(exactGuide.match.provenance, 'automatic');
         assert.equal(exactGuide.current.title, 'On now');
         assert.equal(exactGuide.upcoming[0]?.title, 'Up next');
+        const gridResponse = await request(firstCookie, '/api/epg/grid', 'POST', { channelIds: [channelId] });
+        assert.equal(gridResponse.status, 200);
+        const grid = await gridResponse.json() as { startsAt: string; endsAt: string; rows: { channelId: string; programs: { title: string }[] }[] };
+        assert.equal(new Date(grid.startsAt).getTime() % (30 * 60_000), 0);
+        assert.equal(new Date(grid.endsAt).getTime() - new Date(grid.startsAt).getTime(), 24 * 60 * 60_000);
+        assert.deepEqual(grid.rows.map((row) => [row.channelId, row.programs.map((program) => program.title)]),
+          [[channelId, ['On now', 'Up next']]]);
+        const fullBatch = await request(firstCookie, '/api/epg/grid', 'POST',
+          { channelIds: Array(500).fill(channelId) });
+        assert.equal(fullBatch.status, 200);
+        assert.equal((await request(firstCookie, '/api/epg/grid', 'POST', { channelIds: ['bad'] })).status, 400);
+        assert.equal((await request(firstCookie, '/api/epg/grid', 'POST', { channelIds: [channelId, secondChannelId] })).status, 404);
+        assert.equal((await request(secondCookie, '/api/epg/grid', 'POST', { channelIds: [channelId] })).status, 404);
         const forbiddenMapping = await request(secondCookie, `/api/epg/channels/${secondChannelId}/mapping`, 'PUT',
           { xmltvChannelId: guideChannelId });
         assert.equal(forbiddenMapping.status, 404);
@@ -205,6 +228,13 @@ test('playlist and guide APIs isolate accounts and retain snapshots after failed
         assert.equal((await request(firstCookie, `/api/playlists/sources/${sourceId}/refresh`, 'POST')).status, 200);
         assert.equal((await request(firstCookie, `/api/playlists/sources/${sourceId}`, 'DELETE')).status, 204);
         assert.deepEqual(await (await request(firstCookie, '/api/channels')).json(), { channels: [] });
+
+        const namedGuide = await request(firstCookie, '/api/epg/sources', 'POST',
+          { url: 'https://8.8.8.8/custom.xml?secret=hidden', name: '  My EPG  ' });
+        assert.equal(namedGuide.status, 201);
+        const namedBody = await namedGuide.json() as { source: { name: string } };
+        assert.equal(namedBody.source.name, 'My EPG');
+        assert.equal(JSON.stringify(namedBody).includes('secret=hidden'), false);
       } finally {
         await new Promise<void>((resolve) => server.close(() => resolve()));
       }

@@ -27,6 +27,7 @@ const actionError = ref('');
 const primaryLinks = [
   { name: 'home', label: 'Home', icon: ['fa-solid', 'fa-home'] },
   { name: 'library', label: 'Library', icon: ['fa-solid', 'fa-folder-open'] },
+  { name: 'guide', label: 'Guide', icon: ['fa-solid', 'fa-tv'] },
   { name: 'player', label: 'Player', icon: ['fa-solid', 'fa-play'] },
 ];
 const isAdmin = computed(() => session.user.value?.role === 'admin');
@@ -169,7 +170,7 @@ async function signOut() {
       </div>
     </div>
 
-    <nav aria-label="Mobile navigation" class="fixed inset-x-0 bottom-0 z-20 grid grid-cols-4 border-t border-base-content/15 bg-base-200 px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] text-center text-sm md:hidden">
+    <nav aria-label="Mobile navigation" class="fixed inset-x-0 bottom-0 z-20 grid grid-cols-5 border-t border-base-content/15 bg-base-200 px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] text-center text-sm md:hidden">
       <button ref="mobileMoreButton" type="button" class="flex min-h-14 flex-col items-center justify-center gap-0.5 rounded-lg px-1 hover:bg-base-content/10"
         :class="moreActive || mobileSidebarOpen ? 'bg-primary/20 font-semibold text-primary' : ''"
         aria-controls="app-sidebar" :aria-expanded="mobileSidebarOpen" @click="openMobileSidebar">

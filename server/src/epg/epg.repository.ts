@@ -9,6 +9,7 @@ const BATCH_SIZE = 200;
 
 const safeSource = (source: XmltvSource) => ({
   id: source.id,
+  name: source.name,
   refreshInterval: source.refresh_interval,
   refreshStatus: source.refresh_status,
   lastAttemptAt: source.last_attempt_at,
@@ -20,9 +21,9 @@ const safeSource = (source: XmltvSource) => ({
 export class EPGRepository {
   constructor(private readonly db: Kysely<Database>) {}
 
-  async createSource(ownerId: string, url: string, refreshInterval: number | null) {
+  async createSource(ownerId: string, url: string, refreshInterval: number | null, name: string) {
     const source = await this.db.insertInto('xmltv_sources').values({
-      owner_id: ownerId, url, refresh_interval: refreshInterval,
+      owner_id: ownerId, url, name, refresh_interval: refreshInterval,
       last_attempt_at: null, last_success_at: null, last_failure_code: null, lease_expires_at: null,
     }).returningAll().executeTakeFirstOrThrow();
     return safeSource(source);
@@ -80,12 +81,51 @@ export class EPGRepository {
       displayName: row.display_name, sourceId: row.source_id };
   }
 
-  async findAutomaticMatches(ownerId: string, tvgId: string) {
+  async findManualMatches(ownerId: string, channelIds: string[]) {
+    if (channelIds.length === 0) return [];
+    return this.db.selectFrom('channel_guide_overrides')
+      .innerJoin('xmltv_channels', 'xmltv_channels.id', 'channel_guide_overrides.xmltv_channel_id')
+      .innerJoin('xmltv_sources', 'xmltv_sources.id', 'xmltv_channels.source_id')
+      .select(['channel_guide_overrides.channel_id', 'xmltv_channels.id'])
+      .where('channel_guide_overrides.channel_id', 'in', channelIds)
+      .where('xmltv_sources.owner_id', '=', ownerId).execute();
+  }
+
+  async programsOverlapping(ownerId: string, guideChannelIds: string[], startsAt: Date, endsAt: Date) {
+    if (guideChannelIds.length === 0) return [];
+    return this.db.selectFrom('xmltv_programs')
+      .innerJoin('xmltv_channels', 'xmltv_channels.id', 'xmltv_programs.channel_id')
+      .innerJoin('xmltv_sources', 'xmltv_sources.id', 'xmltv_channels.source_id')
+      .select(['xmltv_programs.channel_id', 'xmltv_programs.title', 'xmltv_programs.starts_at', 'xmltv_programs.ends_at'])
+      .where('xmltv_sources.owner_id', '=', ownerId)
+      .where('xmltv_programs.channel_id', 'in', guideChannelIds)
+      .where('xmltv_programs.ends_at', '>', startsAt)
+      .where('xmltv_programs.starts_at', '<', endsAt)
+      .orderBy('xmltv_programs.channel_id').orderBy('xmltv_programs.starts_at').execute();
+  }
+
+  async findAutomaticMatches(ownerId: string, tvgId: string, mode: 'exact' | 'case' | 'normalized' = 'exact') {
+    const id = sql.ref('xmltv_channels.xmltv_id');
+    let condition;
+    switch (mode) {
+      case 'exact':
+        condition = sql<boolean>`${id} = ${tvgId}`;
+        break;
+      case 'case':
+        condition = sql<boolean>`lower(${id}) = ${tvgId.toLowerCase()}`;
+        break;
+      case 'normalized': {
+        const normalized = tvgId.toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (!normalized) return [];
+        condition = sql<boolean>`regexp_replace(lower(${id}), '[^a-z0-9]', '', 'g') = ${normalized}`;
+        break;
+      }
+    }
     const rows = await this.db.selectFrom('xmltv_channels')
       .innerJoin('xmltv_sources', 'xmltv_sources.id', 'xmltv_channels.source_id')
       .select(['xmltv_channels.id', 'xmltv_channels.xmltv_id', 'xmltv_channels.display_name', 'xmltv_channels.source_id'])
       .where('xmltv_sources.owner_id', '=', ownerId)
-      .where('xmltv_channels.xmltv_id', '=', tvgId).limit(2).execute();
+      .where(condition).limit(2).execute();
     return rows.map((row) => ({ id: row.id, xmltvId: row.xmltv_id,
       displayName: row.display_name, sourceId: row.source_id }));
   }
@@ -106,9 +146,11 @@ export class EPGRepository {
       .select(['title', 'starts_at', 'ends_at']).where('channel_id', '=', guideChannelId)
       .where('starts_at', '<=', now).where('ends_at', '>', now)
       .orderBy('starts_at', 'desc').limit(1).executeTakeFirst();
+
     const upcoming = await this.db.selectFrom('xmltv_programs')
       .select(['title', 'starts_at', 'ends_at']).where('channel_id', '=', guideChannelId)
       .where('starts_at', '>', now).orderBy('starts_at').limit(10).execute();
+      
     const safeProgram = (row: { title: string; starts_at: Date; ends_at: Date }) =>
       ({ title: row.title, startsAt: row.starts_at, endsAt: row.ends_at });
     return { current: current ? safeProgram(current) : null, upcoming: upcoming.map(safeProgram) };

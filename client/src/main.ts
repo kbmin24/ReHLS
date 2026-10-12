@@ -7,9 +7,9 @@ import router from './router';
 import './style.css';
 
 // Import specific icons you want to use
-import { faBars, faHome, faFolderOpen, faPlay, faCircleUser, faScrewdriverWrench, faRightFromBracket, faUsers } from '@fortawesome/free-solid-svg-icons'
+import { faBars, faHome, faFolderOpen, faTv, faPlay, faCircleUser, faScrewdriverWrench, faRightFromBracket, faUsers } from '@fortawesome/free-solid-svg-icons'
 
 // Add icons to the library
-library.add(faBars, faHome, faFolderOpen, faPlay, faCircleUser, faScrewdriverWrench, faRightFromBracket, faUsers);
+library.add(faBars, faHome, faFolderOpen, faTv, faPlay, faCircleUser, faScrewdriverWrench, faRightFromBracket, faUsers);
 
 createApp(App).use(router).component('FontAwesomeIcon', FontAwesomeIcon).mount('#app');

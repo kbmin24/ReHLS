@@ -81,6 +81,7 @@ export interface XmltvSourcesTable {
   id: Generated<string>
   owner_id: string
   url: string
+  name: string
   refresh_interval: number | null
   refresh_status: Generated<'queued' | 'healthy' | 'stale' | 'failed'>
   last_attempt_at: Date | null

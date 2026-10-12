@@ -37,11 +37,18 @@ export function errorText(error: unknown): string {
     case 'INVALID_INPUT': return 'Check the fields and try again.';
     case 'INVALID_ORIGIN': return 'Reload this page and try again.';
     case 'RATE_LIMITED': return 'Too many attempts. Try again later.';
-    case 'NOT_FOUND': return 'That account could not be found.';
-    case 'INVALID_SOURCE': return 'Enter a public HTTP(S) playlist URL.';
-    case 'FETCH_FAILED': return 'The playlist could not be fetched.';
+    case 'NOT_FOUND': return error.code?.service === 'user'
+      ? 'That account could not be found.' : 'That item could not be found.';
+    case 'INVALID_SOURCE': return error.code?.service === 'epg'
+      ? 'Enter a public HTTP(S) XMLTV URL.' : 'Enter a public HTTP(S) playlist URL.';
+    case 'FETCH_FAILED': return error.code?.service === 'epg'
+      ? 'The guide could not be fetched.' : 'The playlist could not be fetched.';
+    case 'PARSE_FAILED': return error.code?.service === 'epg'
+      ? 'The guide could not be read.' : 'The playlist could not be read.';
+    case 'EMPTY_GUIDE': return 'The guide contains no usable data.';
     case 'EMPTY_PLAYLIST': return 'The playlist contains no supported channels.';
-    case 'TOO_LARGE': return error.code?.service === 'streaming' ? 'The media response is too large.' : 'The playlist is too large.';
+    case 'TOO_LARGE': return error.code?.service === 'streaming' ? 'The media response is too large.'
+      : error.code?.service === 'epg' ? 'The guide is too large.' : 'The playlist is too large.';
     case 'UNAVAILABLE': return 'The channel is unavailable right now.';
     case 'UNSUPPORTED': return 'This stream format is not supported.';
     case 'EXPIRED': return 'Playback expired. Select the channel again.';

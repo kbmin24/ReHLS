@@ -31,15 +31,15 @@ export const adminRateLimit = () => rateLimit({
 });
 
 export const libraryRateLimit = () => rateLimit({
-  windowMs: 15 * 60_000,
-  limit: 60,
+  windowMs: 5 * 60_000,
+  limit: 600,
   standardHeaders: 'draft-8',
   legacyHeaders: false,
   handler: reject,
 });
 
 export const mediaRateLimit = () => rateLimit({
-  windowMs: 15 * 60_000,
+  windowMs: 5 * 60_000,
   limit: 2400,
   standardHeaders: 'draft-8',
   legacyHeaders: false,

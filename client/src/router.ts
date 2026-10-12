@@ -8,6 +8,7 @@ import NotFoundView from './views/404.vue';
 import PlaceholderView from './views/PlaceholderView.vue';
 import LibraryView from './views/LibraryView.vue';
 import PlayerView from './views/PlayerView.vue';
+import GuideView from './views/GuideView.vue';
 
 declare module 'vue-router' {
   interface RouteMeta {
@@ -36,6 +37,9 @@ const router = createRouter({
     },
     { path: '/library', name: 'library', component: LibraryView,
       meta: { pageType: 'app', title: 'Library' }
+    },
+    { path: '/guide', name: 'guide', component: GuideView,
+      meta: { pageType: 'app', title: 'Guide' }
     },
     { path: '/player',
       name: 'player', 
