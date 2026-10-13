@@ -40,7 +40,7 @@ const router = createRouter({
       meta: { pageType: 'app', title: 'Library' }
     },
     { path: '/account/guide_sources', name: 'guide_sources', component: GuideSourcesView,
-      meta: { pageType: 'app', title: 'Guide settings' }
+      meta: { pageType: 'app', title: 'Guide sources' }
     },
     { path: '/guide', name: 'guide', component: GuideView,
       meta: { pageType: 'app', title: 'Guide', maxWidth: 'none' }

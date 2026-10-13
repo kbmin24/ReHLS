@@ -171,12 +171,12 @@ onBeforeUnmount(() => {
             <option value="">All playlists</option>
             <option v-for="source in sources" :key="source.id" :value="source.id">{{ source.name }}</option>
           </select>
-          <div class="flex items-center gap-3">
+          <div class="flex min-w-0 items-center gap-3">
             <img v-if="selectedChannel?.hasLogo && failedLogoId !== selectedChannel.id"
               :key="selectedChannel.id" :src="`/api/channels/${selectedChannel.id}/logo`"
               alt="" class="h-14 w-14 shrink-0 object-contain"
               @error="failedLogoId = selectedChannel.id" />
-            <h2 class="text-2xl font-bold">{{ selectedChannel?.name ?? 'No channel selected' }}</h2>
+            <h2 class="min-w-0 break-words text-2xl font-bold">{{ selectedChannel?.name ?? 'No channel selected' }}</h2>
           </div>
           <p v-if="message" role="status" class="text-base-content/70">{{ message }}</p>
           <p v-if="error" role="alert" class="text-error">{{ error }}</p>

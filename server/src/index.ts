@@ -37,7 +37,7 @@ export type AuthSetup = { config: Config; users: UserActions; sessionStore: Stor
 export function createApp(db: HealthDatabase, auth?: AuthSetup): express.Express {
   const app = express();
   if (auth?.config.trustProxy) app.set('trust proxy', 1);
-  app.use(helmet());
+  app.use(helmet({ contentSecurityPolicy: { directives: { 'media-src': ["'self'", 'blob:'] } } }));
   app.use(publicRateLimit());
   app.use('/api/auth/login', loginRateLimit());
   app.use('/api/epg/grid', express.json({ limit: '128kb' }));

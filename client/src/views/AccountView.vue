@@ -2,7 +2,7 @@
 import { useSession } from '../composables/useSession';
 const accountMenus = [
   { name: 'library', label: 'Library', icon: ['fa-solid', 'fa-folder-open'] },
-  { name: 'guide', label: 'Guide', icon: ['fa-solid', 'fa-tv'] },
+  { name: 'guide_sources', label: 'Guide Sources', icon: ['fa-solid', 'fa-tv'] },
 ];
 const { user } = useSession();
 </script>

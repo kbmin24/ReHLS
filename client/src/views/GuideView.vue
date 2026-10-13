@@ -53,7 +53,7 @@ onMounted(loadGuide);
         <option v-for="source in sources" :key="source.id" :value="source.id">{{ source.name }}</option>
       </select>
       <div class="flex items-center gap-2">
-        <RouterLink :to="{ name: 'guide_sources' }" class="btn btn-link btn-sm">Guide settings</RouterLink>
+        <RouterLink :to="{ name: 'guide_sources' }" class="btn btn-link btn-sm">Guide sources</RouterLink>
         <button type="button" class="btn btn-link btn-sm" :disabled="loading" @click="loadGuide">Reload</button>
       </div>
     </div>

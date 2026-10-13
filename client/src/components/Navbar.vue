@@ -128,7 +128,7 @@ async function signOut() {
           <font-awesome-icon :icon="['fa-solid', 'fa-bars']" class="text-xl leading-none"/>
         </button>
         <RouterLink v-show="showSidebarLabels" to="/" custom v-slot="{ navigate }">
-            <img src="../assets/ReHLS_logo_full.png" routerLink="/" alt="ReHLS" class="w-full ml-3 cursor-pointer" @click="navigate" />
+            <img src="../assets/ReHLS_logo_full.png" alt="ReHLS" class="ml-3 min-w-0 flex-1 object-contain cursor-pointer" @click="navigate" />
         </RouterLink>
       </div>
 

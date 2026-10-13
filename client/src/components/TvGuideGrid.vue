@@ -139,10 +139,10 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="order-3 card bg-base-200 lg:col-span-2" :class="fullHeight
+  <div class="order-3 card isolate min-w-0 overflow-x-hidden bg-base-200 lg:col-span-2" :class="fullHeight
     ? 'min-h-0 flex-1 overflow-hidden'
     : 'max-h-[48rem] overflow-y-auto lg:max-h-none lg:min-h-0'">
-    <div class="card-body" :class="fullHeight && 'min-h-0'">
+    <div class="card-body min-w-0" :class="fullHeight && 'min-h-0'">
       <p v-if="loading" role="status">Loading channels...</p>
       <p v-else-if="sourceChannels.length === 0" class="text-base-content/70">
         No channels in this playlist. <RouterLink :to="{ name: 'library' }" class="link">Open your library</RouterLink>.
@@ -174,7 +174,7 @@ onBeforeUnmount(() => {
             </div>
             <div v-for="channel in visibleChannels" :key="channel.id"
               class="grid grid-cols-[9rem_8800px] gap-2 sm:grid-cols-[12rem_8800px]">
-              <button type="button" class="sticky left-0 z-40 p-3 font-medium text-left border rounded-lg min-h-18"
+              <button type="button" class="sticky left-0 z-40 min-w-0 break-words p-3 font-medium text-left border rounded-lg min-h-18"
                 :class="selectedId === channel.id ? 'border-primary bg-primary' : 'border-base-content/15 bg-base-100'"
                 :aria-pressed="selectedId === channel.id" :disabled="busy" @click="emit('select', channel.id)">
                 {{ channel.name }}

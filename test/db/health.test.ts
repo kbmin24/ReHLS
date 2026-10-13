@@ -20,6 +20,19 @@ test('health reports database availability', async () => {
   assert.equal(response.status, 200);
 });
 
+test('CSP allows same-origin and blob media for HLS playback', async () => {
+  const app = createApp({ query: async () => ({ rows: [{ ok: 1 }] }) });
+  const server = app.listen(0, '127.0.0.1');
+  servers.push(server);
+  await once(server, 'listening');
+  const address = server.address();
+  assert.ok(address && typeof address !== 'string');
+  const response = await fetch(`http://127.0.0.1:${address.port}/health`);
+  const csp = response.headers.get('content-security-policy');
+  assert.ok(csp);
+  assert.match(csp, /(?:^|;)media-src 'self' blob:(?:;|$)/);
+});
+
 test('health fails when the database is unavailable', async () => {
   const app = createApp({ query: async () => { throw new Error('database down'); } });
   const server = app.listen(0, '127.0.0.1');
